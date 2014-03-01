@@ -1,6 +1,6 @@
 # yodphp - Yod PHP Framework
 
-It is a simple PHP framework
+It is a simple PHP framework which is written in C and build as PHP extension.
 
 ## Requirement
 - PHP 5.2 +

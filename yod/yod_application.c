@@ -22,8 +22,25 @@
 
 #include "php.h"
 #include "main/SAPI.h"
+#include "ext/standard/file.h"
+#include "ext/standard/flock_compat.h"
+#include "ext/standard/php_filestat.h"
 #include "ext/standard/php_array.h"
 #include "ext/standard/php_string.h"
+
+#ifdef HAVE_SYS_FILE_H
+# include <sys/file.h>
+#endif
+
+#ifdef PHP_WIN32
+#include "win32/time.h"
+#else
+#ifdef HAVE_SYS_TIME_H
+#include <sys/time.h>
+#else
+#include <time.h>
+#endif
+#endif
 
 #include "php_yod.h"
 #include "yod_application.h"
@@ -64,155 +81,16 @@ ZEND_BEGIN_ARG_INFO_EX(yod_application_autoload_arginfo, 0, 0, 1)
 	ZEND_ARG_INFO(0, classname)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(yod_application_errorlog_arginfo, 0, 0, 4)
+	ZEND_ARG_INFO(0, errno)
+	ZEND_ARG_INFO(0, errstr)
+	ZEND_ARG_INFO(0, errfile)
+	ZEND_ARG_INFO(0, errline)
+	ZEND_ARG_INFO(0, errcontext)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(yod_application_destruct_arginfo, 0, 0, 0)
 ZEND_END_ARG_INFO()
-/* }}} */
-
-#ifdef PHP_WIN32
-/** {{{ DIR *opendir(const char *dir)
- * */
-static DIR *opendir(const char *dir) {
-	DIR *dp;
-	char *filespec;
-	HANDLE handle;
-	int index;
-	char resolved_path_buff[MAXPATHLEN];
-	TSRMLS_FETCH();
-
-	if (!VCWD_REALPATH(dir, resolved_path_buff)) {
-		return NULL;
-	}
-
-	filespec = (char *)malloc(strlen(resolved_path_buff) + 2 + 1);
-	if (filespec == NULL) {
-		return NULL;
-	}
-	strcpy(filespec, resolved_path_buff);
-	index = strlen(filespec) - 1;
-	if (index >= 0 && (filespec[index] == '/' || 
-	   (filespec[index] == '\\' && (index == 0 || !IsDBCSLeadByte(filespec[index-1])))))
-		filespec[index] = '\0';
-	strcat(filespec, "\\*");
-
-	dp = (DIR *) malloc(sizeof(DIR));
-	if (dp == NULL) {
-		return NULL;
-	}
-	dp->offset = 0;
-	dp->finished = 0;
-
-	if ((handle = FindFirstFile(filespec, &(dp->fileinfo))) == INVALID_HANDLE_VALUE) {
-		DWORD err = GetLastError();
-		if (err == ERROR_NO_MORE_FILES || err == ERROR_FILE_NOT_FOUND) {
-			dp->finished = 1;
-		} else {
-			free(dp);
-			free(filespec);
-			return NULL;
-		}
-	}
-	dp->dir = strdup(resolved_path_buff);
-	dp->handle = handle;
-	free(filespec);
-
-	return dp;
-}
-/* }}} */
-
-/** {{{ int readdir_r(DIR *dp, struct dirent *entry, struct dirent **result)
- * */
-static int readdir_r(DIR *dp, struct dirent *entry, struct dirent **result) {
-	if (!dp || dp->finished) {
-		*result = NULL;
-		return 0;
-	}
-
-	if (dp->offset != 0) {
-		if (FindNextFile(dp->handle, &(dp->fileinfo)) == 0) {
-			dp->finished = 1;
-			*result = NULL;
-			return 0;
-		}
-	}
-	dp->offset++;
-
-	strlcpy(dp->dent.d_name, dp->fileinfo.cFileName, _MAX_FNAME+1);
-	dp->dent.d_ino = 1;
-	dp->dent.d_reclen = strlen(dp->dent.d_name);
-	dp->dent.d_off = dp->offset;
-
-	memcpy(entry, &dp->dent, sizeof(*entry));
-
-	*result = &dp->dent;
-
-	return 0;
-}
-/* }}} */
-
-/** {{{ int closedir(DIR *dp)
- * */
-static int closedir(DIR *dp) {
-	if (!dp)
-		return 0;
-	/* It is valid to scan an empty directory but we have an invalid
-	   handle in this case (no first file found). */
-	if (dp->handle != INVALID_HANDLE_VALUE) {
-		FindClose(dp->handle);
-	}
-	if (dp->dir)
-		free(dp->dir);
-	if (dp)
-		free(dp);
-
-	return 0;
-}
-/* }}} */
-#endif
-
-/** {{{ static int yod_application_init_autoload(TSRMLS_D)
- * */
-static int yod_application_init_autoload(TSRMLS_D) {
-	zval *param1, *function, *retval = NULL;
-	zval **params[1] = {&param1};
-	zend_fcall_info fci;
-
-#if PHP_YOD_DEBUG
-	yod_debugf("yod_application_init_autoload()");
-#endif
-
-	MAKE_STD_ZVAL(param1);
-	array_init(param1);
-	add_next_index_string(param1, YOD_APP_CNAME, 1);
-	add_next_index_string(param1, "autoload", 1);
-
-	MAKE_STD_ZVAL(function);
-	ZVAL_STRING(function, "spl_autoload_register", 1);
-
-	fci.size = sizeof(fci);
-	fci.function_table = EG(function_table);
-	fci.function_name = function;
-	fci.symbol_table = NULL;
-	fci.retval_ptr_ptr = &retval;
-	fci.param_count = 1;
-	fci.params = (zval ***)params;
-#if PHP_API_VERSION > 20041225
-	fci.object_ptr = NULL;
-#else
-	fci.object_pp = NULL;
-#endif
-	fci.no_separation = 1;
-
-	zend_call_function(&fci, NULL TSRMLS_CC);
-
-	zval_ptr_dtor(&function);
-	zval_ptr_dtor(&param1);
-
-	if (retval) {
-		zval_ptr_dtor(&retval);
-		return 1;
-	}
-	return 0;
-}
 /* }}} */
 
 /** {{{ static void yod_application_init_configs(yod_application_t *object, zval *config TSRMLS_DC)
@@ -224,9 +102,9 @@ static void yod_application_init_configs(yod_application_t *object, zval *config
 	ulong num_key;
 	HashPosition pos;
 
-	DIR *dir = NULL;
-	char dentry[sizeof(struct dirent) + MAXPATHLEN];
-	struct dirent *entry = (struct dirent *) &dentry;
+	php_stream *stream = NULL;
+	php_stream_dirent dirent;
+	php_stream_context *context = NULL;
 
 #if PHP_YOD_DEBUG
 	yod_debugf("yod_application_init_configs()");
@@ -246,39 +124,41 @@ static void yod_application_init_configs(yod_application_t *object, zval *config
 			yod_include(filepath, &config1, 0 TSRMLS_CC);
 		} else {
 			array_init(config1);
-
 			filepath_len = php_dirname(filepath, strlen(filepath));
-			dir = VCWD_OPENDIR(filepath);
-			if (dir) {
-				while (php_readdir_r(dir, (struct dirent *) dentry, &entry) == 0 && entry) {
-					entry_len = strlen(entry->d_name);
+			if (VCWD_ACCESS(filepath, F_OK) == 0) {
+				stream = php_stream_opendir(filepath, ENFORCE_SAFE_MODE | REPORT_ERRORS, context);	
+			}
 
-					if (entry_len > 11 && strncmp(entry->d_name + entry_len - 11, ".config.php", 11) == 0) {
-						spprintf(&filename, 0, "%s/%s", filepath, entry->d_name);
-						if (VCWD_ACCESS(filename, F_OK) == 0) {
-							yod_include(filename, &value1, 0 TSRMLS_CC);
-							if (Z_TYPE_P(value1) == IS_ARRAY) {
-								if (entry_len == 15 && strncmp(entry->d_name, "base", 4) == 0) {
-									php_array_merge(Z_ARRVAL_P(config1), Z_ARRVAL_P(value1), 0 TSRMLS_CC);
-								} else {
-									key_len = entry_len - 11;
-									str_key = estrndup(entry->d_name, key_len);
+			if (stream) {
+				while (php_stream_readdir(stream, &dirent)) {
+					entry_len = strlen(dirent.d_name);
+					if (entry_len < 12 || strncmp(dirent.d_name + entry_len - 11, ".config.php", 11)) {
+						continue;
+					}
 
-									if (zend_hash_find(Z_ARRVAL_P(config1), str_key, key_len + 1, (void **)&ppval) == SUCCESS &&
-										Z_TYPE_PP(ppval) == IS_ARRAY
-									) {
-										php_array_merge(Z_ARRVAL_P(value1), Z_ARRVAL_PP(ppval), 0 TSRMLS_CC);
-									}
-									add_assoc_zval_ex(config1, str_key, key_len + 1, value1);
-									efree(str_key);
+					spprintf(&filename, 0, "%s/%s", filepath, dirent.d_name);
+					if (VCWD_ACCESS(filename, F_OK) == 0) {
+						yod_include(filename, &value1, 0 TSRMLS_CC);
+						if (Z_TYPE_P(value1) == IS_ARRAY) {
+							if (entry_len == 15 && strncmp(dirent.d_name, "base", 4) == 0) {
+								php_array_merge(Z_ARRVAL_P(config1), Z_ARRVAL_P(value1), 0 TSRMLS_CC);
+							} else {
+								key_len = entry_len - 11;
+								str_key = estrndup(dirent.d_name, key_len);
+
+								if (zend_hash_find(Z_ARRVAL_P(config1), str_key, key_len + 1, (void **)&ppval) == SUCCESS &&
+									Z_TYPE_PP(ppval) == IS_ARRAY
+								) {
+									php_array_merge(Z_ARRVAL_P(value1), Z_ARRVAL_PP(ppval), 0 TSRMLS_CC);
 								}
+								add_assoc_zval_ex(config1, str_key, key_len + 1, value1);
+								efree(str_key);
 							}
 						}
-						efree(filename);
 					}
-					
+					efree(filename);
 				}
-				closedir(dir);
+				php_stream_closedir(stream);
 			}
 		}
 		efree(filepath);
@@ -335,12 +215,12 @@ static void yod_application_construct(yod_application_t *object, zval *config TS
 		object_init_ex(YOD_G(yodapp), yod_application_ce);
 	}
 
-	// autoload
-	yod_application_init_autoload(TSRMLS_C);
+	// loading
+	yod_loading(TSRMLS_C);
 
-	// runmode
-	if ((yod_runmode(TSRMLS_C) & 1) == 0) {
-		EG(error_reporting) = 0;
+	// errorlog
+	if (yod_runmode(TSRMLS_C) & 2) {
+		yod_register("set_error_handler", "errorlog" TSRMLS_CC);
 	}
 
 	// config
@@ -528,6 +408,10 @@ void yod_application_app(zval *config TSRMLS_DC) {
 static void yod_application_autorun(TSRMLS_D) {
 	zval runpath;
 
+	if ((yod_runmode(TSRMLS_C) & 1) == 0) {
+		return;
+	}
+
 #if PHP_YOD_DEBUG
 	yod_debugf("yod_application_autorun()");
 #endif
@@ -545,12 +429,6 @@ static void yod_application_autorun(TSRMLS_D) {
 		}
 		zval_dtor(&runpath);
 	}
-
-#if PHP_YOD_DEBUG
-	if (YOD_G(yodapp)) {
-		yod_debugs(TSRMLS_C);
-	}
-#endif
 }
 /* }}} */
 
@@ -559,9 +437,15 @@ static void yod_application_autorun(TSRMLS_D) {
 static int yod_application_autoload(char *classname, uint classname_len TSRMLS_DC) {
 	zend_class_entry **pce = NULL;
 	char *classfile, *classpath;
-	zval *retval;
+	zval runpath;
 
-	if (!YOD_G(yodapp)) return 0;
+	if (!zend_get_constant(ZEND_STRL("YOD_RUNPATH"), &runpath TSRMLS_CC)) {
+		return 0;
+	}
+	zval_dtor(&runpath);
+
+	// loading
+	yod_loading(TSRMLS_C);
 
 	classfile = estrndup(classname, classname_len);
 	// class name with namespace in PHP 5.3
@@ -591,7 +475,7 @@ static int yod_application_autoload(char *classname, uint classname_len TSRMLS_D
 	efree(classfile);
 
 	if (VCWD_ACCESS(classpath, F_OK) == 0) {
-		yod_include(classpath, &retval, 1 TSRMLS_CC);
+		yod_include(classpath, NULL, 1 TSRMLS_CC);
 	}
 	
 #if PHP_YOD_DEBUG
@@ -611,12 +495,104 @@ static int yod_application_autoload(char *classname, uint classname_len TSRMLS_D
 }
 /* }}} */
 
+/** {{{ static int yod_application_errorlog(long errnum, char *errstr, uint errstr_len, char *errfile, uint errfile_len, long errline, zval *errcontext TSRMLS_DC)
+*/
+static int yod_application_errorlog(long errnum, char *errstr, uint errstr_len, char *errfile, uint errfile_len, long errline, zval *errcontext TSRMLS_DC) {
+	struct timeval tp = {0};
+	struct tm *ta, tmbuf;
+	time_t curtime;
+	char *datetime, asctimebuf[52];
+	uint datetime_len;
+
+	zval *zcontext = NULL;
+	php_stream_statbuf ssb;
+	php_stream_context *context;
+	php_stream *stream;
+
+	char *logdata, *logpath, *logfile, *errtype;
+	uint logdata_len;
+
+	switch (errnum) {
+	 	case E_ERROR:
+	 	case E_CORE_ERROR:
+	 	case E_COMPILE_ERROR:
+	 	case E_USER_ERROR:
+	 	case E_RECOVERABLE_ERROR:
+	 		errtype = "Error";
+	 		break;
+	 	case E_WARNING:
+	 	case E_CORE_WARNING:
+	 	case E_COMPILE_WARNING:
+	 	case E_USER_WARNING:
+	 		errtype = "Warning";
+	 		break;
+	 	case E_PARSE:
+	 		errtype = "Parse";
+	 		break;
+	 	case E_NOTICE:
+	 	case E_USER_NOTICE:
+	 		errtype = "Notice";
+	 		break;
+	 	case E_STRICT:
+	 		errtype = "Strict";
+	 		break;
+#ifdef E_DEPRECATED
+	 	case E_DEPRECATED:
+	 	case E_USER_DEPRECATED:
+	 		errtype = "Deprecated";
+	 		break;
+#endif
+	 	default:
+	 		errtype = "Unknown";
+	 		break;
+	}
+
+	logpath = yod_logpath(TSRMLS_C);
+	if (php_stream_stat_path(logpath, &ssb) == FAILURE) {
+		if (!php_stream_mkdir(logpath, 0750, REPORT_ERRORS, NULL)) {
+			return 0;
+		}
+	}
+
+	spprintf(&logfile, 0, "%s/errors.log", logpath);
+	context = php_stream_context_from_zval(zcontext, 0);
+
+#if PHP_API_VERSION < 20100412
+	stream = php_stream_open_wrapper_ex(logfile, "ab", ENFORCE_SAFE_MODE | REPORT_ERRORS, NULL, context);
+#else
+	stream = php_stream_open_wrapper_ex(logfile, "ab", REPORT_ERRORS, NULL, context);
+#endif
+
+	if (stream) {
+		if (php_stream_supports_lock(stream)) {
+			php_stream_lock(stream, LOCK_EX);
+		}
+
+		time(&curtime);
+		ta = php_localtime_r(&curtime, &tmbuf);
+		datetime = php_asctime_r(ta, asctimebuf);
+		datetime_len = strlen(datetime);
+		datetime[datetime_len - 1] = 0;
+
+		if (!gettimeofday(&tp, NULL)) {
+			logdata_len = spprintf(&logdata, 0, "[%s %06d] %s: %s in %s(%d)\n", datetime, tp.tv_usec, errtype, (errstr_len ? errstr : ""), (errfile_len ? errfile : "Unknown"), errline);
+			php_stream_write(stream, logdata, logdata_len);
+			efree(logdata);
+		}
+		php_stream_close(stream);
+	}
+	efree(logfile);
+
+	return 1;
+}
+/* }}} */
+
 /** {{{ proto public Yod_Application::__construct($config = null)
 */
 PHP_METHOD(yod_application, __construct) {
 	zval *config = NULL;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|z", &config) == FAILURE) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|z!", &config) == FAILURE) {
 		return;
 	}
 
@@ -668,7 +644,7 @@ PHP_METHOD(yod_application, import) {
 PHP_METHOD(yod_application, app) {
 	zval *config = NULL;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|z", &config) == FAILURE) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|z!", &config) == FAILURE) {
 		return;
 	}
 
@@ -703,6 +679,24 @@ PHP_METHOD(yod_application, autoload) {
 }
 /* }}} */
 
+/** {{{ proto public static Yod_Application::errorlog($errno, $errstr, $errfile = '', $errline = 0, $errcontext = array())
+*/
+PHP_METHOD(yod_application, errorlog) {
+	zval *errcontext = NULL;
+	char *errstr, *errfile = NULL;
+	uint errstr_len, errfile_len = 0;
+	long errnum, errline = 0;
+
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ls|slz!", &errnum, &errstr, &errstr_len, &errfile, &errfile_len, &errline, &errcontext) == FAILURE) {
+		return;
+	}
+
+	yod_application_errorlog(errnum, errstr, errstr_len, errfile, errfile_len, errline, errcontext TSRMLS_CC);
+
+	RETURN_FALSE;
+}
+/* }}} */
+
 /** {{{ proto public Yod_Application::__destruct()
 */
 PHP_METHOD(yod_application, __destruct) {
@@ -710,6 +704,10 @@ PHP_METHOD(yod_application, __destruct) {
 	if (!YOD_G(running) && !YOD_G(exited)) {
 		yod_application_run(TSRMLS_C);
 	}
+
+#if PHP_YOD_DEBUG
+	yod_debugs(TSRMLS_C);
+#endif
 }
 /* }}} */
 
@@ -723,6 +721,7 @@ zend_function_entry yod_application_methods[] = {
 	PHP_ME(yod_application, app,			yod_application_app_arginfo,		ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
 	PHP_ME(yod_application, autorun,		yod_application_autorun_arginfo,	ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
 	PHP_ME(yod_application, autoload,		yod_application_autoload_arginfo,	ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
+	PHP_ME(yod_application, errorlog,		yod_application_errorlog_arginfo,	ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
 	PHP_ME(yod_application, __destruct,		yod_application_destruct_arginfo,	ZEND_ACC_PUBLIC|ZEND_ACC_DTOR)
 	{NULL, NULL, NULL}
 };

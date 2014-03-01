@@ -60,9 +60,7 @@ class Yod_DbMysqli extends Yod_Database
 		if($dbversion >'5.0.1'){
 			$this->_linkids[$linknum]->query("SET sql_mode=''");
 		}
-		if (error_reporting()) {
-			mysqli_report(MYSQLI_REPORT_ERROR);
-		}
+		mysqli_report(MYSQLI_REPORT_ERROR);
 		return $this->_linkid = $this->_linkids[$linknum];
 	}
 
@@ -215,7 +213,10 @@ class Yod_DbMysqli extends Yod_Database
 		if (is_null($result)) {
 			$result = $this->_result;
 		}
-		return is_object($result) ? $result->fetch_assoc() : false;
+		if ($result instanceof mysqli_result) {
+			return $result->fetch_assoc();
+		}
+		return false;
 	}
 
 	/**
@@ -225,11 +226,20 @@ class Yod_DbMysqli extends Yod_Database
 	 */
 	public function fetchAll($result = null)
 	{
-		$data = array();
-		while ($fetch = $this->fetch($result)){
-			$data[] = $fetch;
+		if (is_null($result)) {
+			$result = $this->_result;
 		}
-		return $data;
+		if ($result instanceof mysqli_result) {
+			if (method_exists('mysqli_result', 'fetch_all')) {
+				return $result->fetch_all(MYSQLI_ASSOC);
+			}
+			$data = array();
+			while ($fetch = $result->fetch_assoc()){
+				$data[] = $fetch;
+			}
+			return $data;		
+		}
+		return false;
 	}
 
 	/**

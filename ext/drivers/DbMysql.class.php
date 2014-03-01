@@ -116,10 +116,9 @@ class Yod_DbMysql extends Yod_Database
 			}
 			return $affected ? mysql_affected_rows($this->_linkid) : true;
 		}
-		if (error_reporting()) {
-			if ($error = mysql_error($this->_linkid)) {
-				trigger_error($error, E_USER_WARNING);
-			}
+
+		if ($error = mysql_error($this->_linkid)) {
+			trigger_error($error, E_USER_WARNING);
 		}
 		return false;
 	}
@@ -150,10 +149,8 @@ class Yod_DbMysql extends Yod_Database
 			}
 			return $result;
 		}
-		if (error_reporting()) {
-			if ($error = mysql_error($this->_linkid)) {
-				trigger_error($error, E_USER_WARNING);
-			}
+		if ($error = mysql_error($this->_linkid)) {
+			trigger_error($error, E_USER_WARNING);
 		}
 		return false;
 	}
@@ -228,10 +225,8 @@ class Yod_DbMysql extends Yod_Database
 		if (mysql_query('START TRANSACTION', $this->_linkid)) {
 			return true;
 		}
-		if (error_reporting()) {
-			if ($error = mysql_error($this->_linkid)) {
-				trigger_error($error, E_USER_WARNING);
-			}
+		if ($error = mysql_error($this->_linkid)) {
+			trigger_error($error, E_USER_WARNING);
 		}
 		return false;
 	}
@@ -248,10 +243,8 @@ class Yod_DbMysql extends Yod_Database
 		if (mysql_query('COMMIT', $this->_linkid)) {
 			return true;
 		}
-		if (error_reporting()) {
-			if ($error = mysql_error($this->_linkid)) {
-				trigger_error($error, E_USER_WARNING);
-			}
+		if ($error = mysql_error($this->_linkid)) {
+			trigger_error($error, E_USER_WARNING);
 		}
 		return false;
 	}
@@ -268,10 +261,8 @@ class Yod_DbMysql extends Yod_Database
 		if (mysql_query('ROLLBACK', $this->_linkid)) {
 			return true;
 		}
-		if (error_reporting()) {
-			if ($error = mysql_error($this->_linkid)) {
-				trigger_error($error, E_USER_WARNING);
-			}
+		if ($error = mysql_error($this->_linkid)) {
+			trigger_error($error, E_USER_WARNING);
 		}
 		return false;
 	}

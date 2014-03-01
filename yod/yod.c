@@ -51,6 +51,7 @@
 #include "yod_action.h"
 #include "yod_widget.h"
 #include "yod_model.h"
+#include "yod_dbmodel.h"
 #include "yod_database.h"
 #include "yod_dbpdo.h"
 
@@ -62,9 +63,9 @@
 
 ZEND_DECLARE_MODULE_GLOBALS(yod);
 
-/** {{{ void yod_do_exit(TSRMLS_D)
+/** {{{ int yod_do_exit(long status TSRMLS_DC)
 */
-void yod_do_exit(TSRMLS_D) {
+int yod_do_exit(long status TSRMLS_DC) {
 
 #if PHP_YOD_DEBUG
 	yod_debugf("yod_do_exit()");
@@ -72,9 +73,12 @@ void yod_do_exit(TSRMLS_D) {
 #endif
 
 	YOD_G(exited) = 1;
+	EG(exit_status) = status;
 	zend_set_memory_limit(PG(memory_limit));
 	zend_objects_store_mark_destructed(&EG(objects_store) TSRMLS_CC);
 	zend_bailout();
+
+	return 1;
 }
 /* }}} */
 
@@ -151,6 +155,48 @@ int yod_call_method(zval *object, char *func, int func_len, zval **result, int p
 }
 /* }}} */
 
+/** {{{ int yod_register(char *moduel, char *method TSRMLS_DC)
+ * */
+int yod_register(char *moduel, char *method TSRMLS_DC) {
+	zval *param1, *function, *retval = NULL;
+	zval **params[1] = {&param1};
+	zend_fcall_info fci;
+
+	MAKE_STD_ZVAL(param1);
+	array_init(param1);
+	add_next_index_string(param1, YOD_APP_CNAME, 1);
+	add_next_index_string(param1, method, 1);
+
+	MAKE_STD_ZVAL(function);
+	ZVAL_STRING(function, moduel, 1);
+
+	fci.size = sizeof(fci);
+	fci.function_table = EG(function_table);
+	fci.function_name = function;
+	fci.symbol_table = NULL;
+	fci.retval_ptr_ptr = &retval;
+	fci.param_count = 1;
+	fci.params = (zval ***)params;
+#if PHP_API_VERSION > 20041225
+	fci.object_ptr = NULL;
+#else
+	fci.object_pp = NULL;
+#endif
+	fci.no_separation = 1;
+
+	zend_call_function(&fci, NULL TSRMLS_CC);
+
+	zval_ptr_dtor(&function);
+	zval_ptr_dtor(&param1);
+
+	if (retval) {
+		zval_ptr_dtor(&retval);
+		return 1;
+	}
+	return 0;
+}
+/* }}} */
+
 /** {{{ double yod_runtime(TSRMLS_D)
 */
 double yod_runtime(TSRMLS_D) {
@@ -163,6 +209,24 @@ double yod_runtime(TSRMLS_D) {
 	}
 
 	return YOD_G(runtime);
+}
+/* }}} */
+
+/** {{{ long yod_forward(TSRMLS_D)
+*/
+long yod_forward(TSRMLS_D) {
+	zval forward;
+	long retval;
+
+	if (zend_get_constant(ZEND_STRL("YOD_FORWARD"), &forward TSRMLS_CC)) {
+		convert_to_long(&forward);
+		retval = Z_LVAL(forward);
+	} else {
+		retval = YOD_FORWARD;
+		zend_register_long_constant(ZEND_STRS("YOD_FORWARD"), retval, CONST_CS, 0 TSRMLS_CC);
+	}
+
+	return retval;
 }
 /* }}} */
 
@@ -180,11 +244,7 @@ long yod_runmode(TSRMLS_D) {
 			zend_register_long_constant(ZEND_STRS("YOD_RUNMODE"), YOD_G(runmode), CONST_CS, 0 TSRMLS_CC);
 		}
 	}
-	
-#if PHP_YOD_DEBUG
-	yod_debugf("yod_runmode():%d", YOD_G(runmode));
-#endif
-	
+
 	return YOD_G(runmode);
 }
 /* }}} */
@@ -205,11 +265,27 @@ char *yod_charset(TSRMLS_D) {
 		}
 	}
 
-#if PHP_YOD_DEBUG
-	yod_debugf("yod_charset():%s", YOD_G(charset));
-#endif
-
 	return YOD_G(charset);
+}
+/* }}} */
+
+/** {{{ char *yod_viewext(TSRMLS_D)
+*/
+char *yod_viewext(TSRMLS_D) {
+	zval viewext;
+
+	if (!YOD_G(viewext)) {
+		if (zend_get_constant(ZEND_STRL("YOD_VIEWEXT"), &viewext TSRMLS_CC)) {
+			YOD_G(viewext) = Z_STRVAL(viewext);
+		} else {
+			INIT_ZVAL(viewext);
+			ZVAL_STRING(&viewext, YOD_VIEWEXT, 1);
+			YOD_G(viewext) = estrndup(YOD_VIEWEXT, strlen(YOD_VIEWEXT));
+			zend_register_string_constant(ZEND_STRS("YOD_VIEWEXT"), Z_STRVAL(viewext), CONST_CS, 0 TSRMLS_CC);
+		}
+	}
+
+	return YOD_G(viewext);
 }
 /* }}} */
 
@@ -227,40 +303,13 @@ char *yod_pathvar(TSRMLS_D) {
 			YOD_G(pathvar) = estrndup(YOD_PATHVAR, strlen(YOD_PATHVAR));
 			zend_register_string_constant(ZEND_STRS("YOD_PATHVAR"), Z_STRVAL(pathvar), CONST_CS, 0 TSRMLS_CC);
 		}
-	}
 
 #if PHP_YOD_DEBUG
-	yod_debugf("yod_pathvar():%s", YOD_G(pathvar));
+		yod_debugf("yod_pathvar():%s", YOD_G(pathvar));
 #endif
+	}
 
 	return YOD_G(pathvar);
-}
-/* }}} */
-
-/** {{{ char *yod_extpath(TSRMLS_D)
-*/
-char *yod_extpath(TSRMLS_D) {
-	zval extpath;
-	uint extpath_len;
-
-	if (!YOD_G(extpath)) {
-		if (zend_get_constant(ZEND_STRL("YOD_EXTPATH"), &extpath TSRMLS_CC)) {
-			YOD_G(extpath) = Z_STRVAL(extpath);
-		} else {
-			INIT_ZVAL(extpath);
-			extpath_len = strlen(SG(request_info).path_translated);
-			YOD_G(extpath) = estrndup(SG(request_info).path_translated, extpath_len);
-			extpath_len = php_dirname(YOD_G(extpath), extpath_len);
-			ZVAL_STRINGL(&extpath, YOD_G(extpath), extpath_len, 1);
-			zend_register_stringl_constant(ZEND_STRS("YOD_EXTPATH"), Z_STRVAL(extpath), extpath_len, CONST_CS, 0 TSRMLS_CC);
-		}
-	}
-	
-#if PHP_YOD_DEBUG
-	yod_debugf("yod_extpath():%s", YOD_G(extpath));
-#endif
-
-	return YOD_G(extpath);
 }
 /* }}} */
 
@@ -281,36 +330,91 @@ char *yod_runpath(TSRMLS_D) {
 			ZVAL_STRINGL(&runpath, YOD_G(runpath), runpath_len, 1);
 			zend_register_stringl_constant(ZEND_STRS("YOD_RUNPATH"), Z_STRVAL(runpath), runpath_len, CONST_CS, 0 TSRMLS_CC);
 		}
-	}
 
 #if PHP_YOD_DEBUG
-	yod_debugf("yod_runpath():%s", YOD_G(runpath));
+		yod_debugf("yod_runpath():%s", YOD_G(runpath));
 #endif
+	}
 
 	return YOD_G(runpath);
 }
 /* }}} */
 
-/** {{{ long yod_forward(TSRMLS_D)
+/** {{{ char *yod_extpath(TSRMLS_D)
 */
-long yod_forward(TSRMLS_D) {
-	zval forward;
-	long retval;
+char *yod_extpath(TSRMLS_D) {
+	zval extpath;
+	uint extpath_len;
 
-
-	if (zend_get_constant(ZEND_STRL("YOD_FORWARD"), &forward TSRMLS_CC)) {
-		convert_to_long(&forward);
-		retval = Z_LVAL(forward);
-	} else {
-		retval = YOD_FORWARD;
-		zend_register_long_constant(ZEND_STRS("YOD_FORWARD"), retval, CONST_CS, 0 TSRMLS_CC);
-	}
+	if (!YOD_G(extpath)) {
+		if (zend_get_constant(ZEND_STRL("YOD_EXTPATH"), &extpath TSRMLS_CC)) {
+			YOD_G(extpath) = Z_STRVAL(extpath);
+		} else {
+			INIT_ZVAL(extpath);
+			extpath_len = strlen(SG(request_info).path_translated);
+			YOD_G(extpath) = estrndup(SG(request_info).path_translated, extpath_len);
+			extpath_len = php_dirname(YOD_G(extpath), extpath_len);
+			ZVAL_STRINGL(&extpath, YOD_G(extpath), extpath_len, 1);
+			zend_register_stringl_constant(ZEND_STRS("YOD_EXTPATH"), Z_STRVAL(extpath), extpath_len, CONST_CS, 0 TSRMLS_CC);
+		}
 	
 #if PHP_YOD_DEBUG
-	yod_debugf("yod_forward():%d", retval);
+		yod_debugf("yod_extpath():%s", YOD_G(extpath));
 #endif
+	}
+
+	return YOD_G(extpath);
+}
+/* }}} */
+
+/** {{{ char *yod_logpath(TSRMLS_D)
+*/
+char *yod_logpath(TSRMLS_D) {
+	zval logpath;
+	uint logpath_len;
+
+	if (!YOD_G(logpath)) {
+		if (zend_get_constant(ZEND_STRL("YOD_LOGPATH"), &logpath TSRMLS_CC)) {
+			YOD_G(logpath) = Z_STRVAL(logpath);
+		} else {
+			INIT_ZVAL(logpath);
+			logpath_len = strlen(SG(request_info).path_translated);
+			YOD_G(logpath) = estrndup(SG(request_info).path_translated, logpath_len);
+			logpath_len = php_dirname(YOD_G(logpath), logpath_len);
+			ZVAL_STRINGL(&logpath, YOD_G(logpath), logpath_len, 1);
+			zend_register_stringl_constant(ZEND_STRS("YOD_LOGPATH"), Z_STRVAL(logpath), logpath_len, CONST_CS, 0 TSRMLS_CC);
+		}
 	
-	return retval;
+#if PHP_YOD_DEBUG
+		yod_debugf("yod_logpath():%s", YOD_G(logpath));
+#endif
+	}
+
+	return YOD_G(logpath);
+}
+/* }}} */
+
+/** {{{ void yod_loading(TSRMLS_D)
+*/
+void yod_loading(TSRMLS_D) {
+	if (YOD_G(loading)) {
+		return;
+	}
+
+#if PHP_YOD_DEBUG
+	yod_debugf("yod_loading()");
+#endif
+
+	YOD_G(loading) = 1;
+	yod_runtime(TSRMLS_C);
+	yod_forward(TSRMLS_C);
+	yod_runmode(TSRMLS_C);
+	yod_charset(TSRMLS_C);
+	yod_viewext(TSRMLS_C);
+	yod_pathvar(TSRMLS_C);
+	yod_runpath(TSRMLS_C);
+	yod_extpath(TSRMLS_C);
+	yod_logpath(TSRMLS_C);
 }
 /* }}} */
 
@@ -345,7 +449,7 @@ int yod_include(char *filepath, zval **retval, int dtor TSRMLS_DC) {
 			file_handle.opened_path = filepath;
 		}
 
-		zend_hash_add(&EG(included_files), file_handle.opened_path, strlen(file_handle.opened_path)+1, (void *)&dummy, sizeof(int), NULL);
+		zend_hash_add(&EG(included_files), file_handle.opened_path, strlen(file_handle.opened_path) + 1, (void *)&dummy, sizeof(int), NULL);
 	}
 	zend_destroy_file_handle(&file_handle TSRMLS_CC);
 
@@ -381,48 +485,6 @@ int yod_include(char *filepath, zval **retval, int dtor TSRMLS_DC) {
 }
 /* }}} */
 
-/** {{{ static int yod_autorun_register(TSRMLS_D)
- * */
-static int yod_autorun_register(TSRMLS_D) {
-	zval *param1, *function, *retval = NULL;
-	zval **params[1] = {&param1};
-	zend_fcall_info fci;
-
-	MAKE_STD_ZVAL(param1);
-	array_init(param1);
-	add_next_index_string(param1, YOD_APP_CNAME, 1);
-	add_next_index_string(param1, "autorun", 1);
-
-	MAKE_STD_ZVAL(function);
-	ZVAL_STRING(function, "register_shutdown_function", 1);
-
-	fci.size = sizeof(fci);
-	fci.function_table = EG(function_table);
-	fci.function_name = function;
-	fci.symbol_table = NULL;
-	fci.retval_ptr_ptr = &retval;
-	fci.param_count = 1;
-	fci.params = (zval ***)params;
-#if PHP_API_VERSION > 20041225
-	fci.object_ptr = NULL;
-#else
-	fci.object_pp = NULL;
-#endif
-	fci.no_separation = 1;
-
-	zend_call_function(&fci, NULL TSRMLS_CC);
-
-	zval_ptr_dtor(&function);
-	zval_ptr_dtor(&param1);
-
-	if (retval) {
-		zval_ptr_dtor(&retval);
-		return 1;
-	}
-	return 0;
-}
-/* }}} */
-
 /* {{{ yod_functions[]
 */
 zend_function_entry yod_functions[] = {
@@ -435,15 +497,18 @@ zend_function_entry yod_functions[] = {
 PHP_GINIT_FUNCTION(yod)
 {
 	yod_globals->runtime	= 0;
+	yod_globals->forward	= 0;
 	yod_globals->runmode	= 0;
 	yod_globals->charset	= NULL;
+	yod_globals->viewext	= NULL;
 	yod_globals->pathvar	= NULL;
-	yod_globals->extpath	= NULL;
 	yod_globals->runpath	= NULL;
+	yod_globals->extpath	= NULL;
+	yod_globals->logpath	= NULL;
 	yod_globals->yodapp		= NULL;
 	yod_globals->exited		= 0;
 	yod_globals->running	= 0;
-	yod_globals->forward	= 0;
+	yod_globals->loading	= 0;
 
 #if PHP_YOD_DEBUG
 	yod_globals->debugs		= NULL;
@@ -464,7 +529,7 @@ PHP_MINIT_FUNCTION(yod)
 	PHP_MINIT(yod_action)(INIT_FUNC_ARGS_PASSTHRU);
 	PHP_MINIT(yod_widget)(INIT_FUNC_ARGS_PASSTHRU);
 	PHP_MINIT(yod_model)(INIT_FUNC_ARGS_PASSTHRU);
-//	PHP_MINIT(yod_dbmodel)(INIT_FUNC_ARGS_PASSTHRU);
+	PHP_MINIT(yod_dbmodel)(INIT_FUNC_ARGS_PASSTHRU);
 	PHP_MINIT(yod_database)(INIT_FUNC_ARGS_PASSTHRU);
 	PHP_MINIT(yod_dbpdo)(INIT_FUNC_ARGS_PASSTHRU);
 
@@ -494,15 +559,18 @@ PHP_RINIT_FUNCTION(yod)
 	}
 	REGISTER_DOUBLE_CONSTANT("YOD_RUNTIME", YOD_G(runtime), CONST_CS);
 
+	YOD_G(forward)			= 0;
 	YOD_G(runmode)			= 0;
 	YOD_G(charset)			= NULL;
+	YOD_G(viewext)			= NULL;
 	YOD_G(pathvar)			= NULL;
-	YOD_G(extpath)			= NULL;
 	YOD_G(runpath)			= NULL;
+	YOD_G(extpath)			= NULL;
+	YOD_G(logpath)			= NULL;
 	YOD_G(yodapp)			= NULL;
 	YOD_G(exited)			= 0;
 	YOD_G(running)			= 0;
-	YOD_G(forward)			= 0;
+	YOD_G(loading)			= 0;
 
 #if PHP_YOD_DEBUG
 	MAKE_STD_ZVAL(YOD_G(debugs));
@@ -510,15 +578,26 @@ PHP_RINIT_FUNCTION(yod)
 #endif
 
 /*
-	zval *params;
-	MAKE_STD_ZVAL(params);
-	array_init(params);
-	add_next_index_string(params, YOD_APP_CNAME, 1);
-	add_next_index_string(params, "autorun", 1);
-	zend_call_method_with_1_params(NULL, NULL, NULL, "register_shutdown_function", NULL, params);
-	zval_ptr_dtor(&params);
+	zval *params1, *params2;
+
+	MAKE_STD_ZVAL(params1);
+	array_init(params1);
+	add_next_index_string(params1, YOD_APP_CNAME, 1);
+	add_next_index_string(params1, "autoload", 1);
+	zend_call_method_with_1_params(NULL, NULL, NULL, "spl_autoload_register", NULL, params1);
+	zval_ptr_dtor(&params1);
+
+	MAKE_STD_ZVAL(params2);
+	array_init(params2);
+	add_next_index_string(params2, YOD_APP_CNAME, 1);
+	add_next_index_string(params2, "autorun", 1);
+	zend_call_method_with_1_params(NULL, NULL, NULL, "register_shutdown_function", NULL, params2);
+	zval_ptr_dtor(&params2);
 */
-	yod_autorun_register(TSRMLS_C);
+
+	// register
+	yod_register("spl_autoload_register", "autoload" TSRMLS_CC);
+	yod_register("register_shutdown_function", "autorun" TSRMLS_CC);
 
 	return SUCCESS;
 }
@@ -532,10 +611,20 @@ PHP_RSHUTDOWN_FUNCTION(yod)
 		efree(YOD_G(charset));
 		YOD_G(charset) = NULL;
 	}
+
+	if (YOD_G(viewext)) {
+		efree(YOD_G(viewext));
+		YOD_G(viewext) = NULL;
+	}
 	
 	if (YOD_G(pathvar)) {
 		efree(YOD_G(pathvar));
 		YOD_G(pathvar) = NULL;
+	}
+
+	if (YOD_G(runpath)) {
+		efree(YOD_G(runpath));
+		YOD_G(runpath) = NULL;
 	}
 
 	if (YOD_G(extpath)) {
@@ -543,9 +632,9 @@ PHP_RSHUTDOWN_FUNCTION(yod)
 		YOD_G(extpath) = NULL;
 	}
 
-	if (YOD_G(runpath)) {
-		efree(YOD_G(runpath));
-		YOD_G(runpath) = NULL;
+	if (YOD_G(logpath)) {
+		efree(YOD_G(logpath));
+		YOD_G(logpath) = NULL;
 	}
 
 	if (YOD_G(yodapp)) {

@@ -117,7 +117,7 @@ void yod_request_error404(yod_request_t *object, zval *html TSRMLS_DC) {
 		}
 	}
 
-	yod_do_exit(TSRMLS_C);
+	yod_do_exit(0 TSRMLS_CC);
 }
 /* }}} */
 
@@ -286,8 +286,15 @@ int yod_request_route(yod_request_t *object, char *route, uint route_len TSRMLS_
 		efree(route3);
 	}
 
-	classname_len = strlen(SG(request_info).path_translated);
-	php_basename(SG(request_info).path_translated, classname_len, ".php", 4, &classname1, &classname_len TSRMLS_CC);
+	if (zend_hash_find(_SERVER, ZEND_STRS("SCRIPT_FILENAME"), (void **) &ppval) != FAILURE &&
+		Z_TYPE_PP(ppval) == IS_STRING
+	) {
+		classname_len = Z_STRLEN_PP(ppval);
+		php_basename(Z_STRVAL_PP(ppval), classname_len, ".php", 4, &classname1, &classname_len TSRMLS_CC);
+	} else {
+		classname_len = strlen(SG(request_info).path_translated);
+		php_basename(SG(request_info).path_translated, classname_len, ".php", 4, &classname1, &classname_len TSRMLS_CC);
+	}
 	zend_str_tolower(classname1, classname_len);
 	classname_len = spprintf(&classname, 0, "%sController", classname1);
 	efree(classname1);
@@ -578,7 +585,7 @@ PHP_METHOD(yod_request, erroraction) {
 PHP_METHOD(yod_request, error404) {
 	zval *html = NULL;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|z", &html) == FAILURE) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|z!", &html) == FAILURE) {
 		return;
 	}
 

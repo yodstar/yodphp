@@ -27,6 +27,7 @@
 #include "main/SAPI.h"
 #include "ext/standard/file.h"
 #include "ext/standard/flock_compat.h"
+#include "ext/standard/php_filestat.h"
 #include "ext/standard/php_var.h"
 
 #ifdef HAVE_SYS_FILE_H
@@ -54,14 +55,18 @@ void yod_debugf(const char *format,...) {
 	struct timeval tp = {0};
 	va_list args;
 	char *buffer, *buffer1;
-	long mem_usage;
+	size_t mem_usage;
 
 	struct tm *ta, tmbuf;
 	time_t curtime;
 	char *datetime, asctimebuf[52];
-	uint datetime_len;
+	size_t datetime_len;
 	
 	TSRMLS_FETCH();
+	
+	if ((yod_runmode(TSRMLS_C) & 12) == 0) {
+		return;
+	}
 
 	time(&curtime);
 	ta = php_localtime_r(&curtime, &tmbuf);
@@ -91,6 +96,10 @@ void yod_debugl(char *sline TSRMLS_DC) {
 	char *buffer;
 	uint buffer_len;
 
+	if ((yod_runmode(TSRMLS_C) & 12) == 0) {
+		return;
+	}
+
 	if (sline) {
 		switch (sline[0]) {
 			case '-' :
@@ -116,6 +125,10 @@ void yod_debugl(char *sline TSRMLS_DC) {
 void yod_debugz(zval *pzval, int dump TSRMLS_DC) {
 	zval *ob_buffer;
 	int ob_start;
+
+	if ((yod_runmode(TSRMLS_C) & 12) == 0) {
+		return;
+	}
 
 #ifdef PHP_OUTPUT_NEWAPI
 	ob_start = php_output_start_user(NULL, 0, PHP_OUTPUT_HANDLER_STDFLAGS TSRMLS_CC);
@@ -159,29 +172,41 @@ void yod_debugz(zval *pzval, int dump TSRMLS_DC) {
 /** {{{ int yod_debugw(char *data, uint data_len TSRMLS_DC)
 */
 int yod_debugw(char *data, uint data_len TSRMLS_DC) {
-	zval logfile;
 	zval *zcontext = NULL;
-	php_stream_context *context = NULL;
+	php_stream_statbuf ssb;
+	php_stream_context *context;
 	php_stream *stream;
+	
+	char *logpath, *logfile;
 
 	if (data_len == 0) {
 		return 0;
 	}
 
-	if (zend_get_constant(ZEND_STRL("YOD_LOGFILE"), &logfile TSRMLS_CC)) {
-		if (Z_TYPE(logfile) == IS_STRING && Z_STRLEN(logfile)) {
-			context = php_stream_context_from_zval(zcontext, 0);
-			stream = php_stream_open_wrapper_ex(Z_STRVAL(logfile), "ab", 0, NULL, context);
-			if (stream) {
-				if (php_stream_supports_lock(stream)) {
-					php_stream_lock(stream, LOCK_EX);
-				}
-				php_stream_write(stream, data, data_len);
-				php_stream_close(stream);
-			}
+	logpath = yod_logpath(TSRMLS_C);
+	if (php_stream_stat_path(logpath, &ssb) == FAILURE) {
+		if (!php_stream_mkdir(logpath, 0750, REPORT_ERRORS, NULL)) {
+			return 0;
 		}
-		zval_dtor(&logfile);
 	}
+	
+	spprintf(&logfile, 0, "%s/debugs.log", logpath);
+	context = php_stream_context_from_zval(zcontext, 0);
+
+#if PHP_API_VERSION < 20100412
+	stream = php_stream_open_wrapper_ex(logfile, "ab", ENFORCE_SAFE_MODE | REPORT_ERRORS, NULL, context);
+#else
+	stream = php_stream_open_wrapper_ex(logfile, "ab", REPORT_ERRORS, NULL, context);
+#endif
+
+	if (stream) {
+		if (php_stream_supports_lock(stream)) {
+			php_stream_lock(stream, LOCK_EX);
+		}
+		php_stream_write(stream, data, data_len);
+		php_stream_close(stream);
+	}
+	efree(logfile);
 
 	return 1;
 }
@@ -190,7 +215,7 @@ int yod_debugw(char *data, uint data_len TSRMLS_DC) {
 /** {{{ void yod_debugs(TSRMLS_D)
 */
 void yod_debugs(TSRMLS_D) {
-	zval **ppzval;
+	zval **data;
 	long runmode;
 	double runtime;
 	struct timeval tp = {0};
@@ -204,9 +229,13 @@ void yod_debugs(TSRMLS_D) {
 		return;
 	}
 
+#if PHP_YOD_DEBUG
+	yod_debugf("yod_debugs()");
+#endif
+	
 	runmode = yod_runmode(TSRMLS_C);
 
-	if ((runmode & 6) == 0) {
+	if ((runmode & 12) == 0) {
 		return;
 	}
 
@@ -224,15 +253,15 @@ void yod_debugs(TSRMLS_D) {
 #endif
 
 	if (SG(request_info).request_method) {
-		php_printf("\n<pre><hr><font color=\"red\">Yod is running in debug mode</font>\n%s\n", YOD_DOTLINE);
+		php_printf("\n<pre><hr><font color=\"red\">Yod is running in debug mode (%d)</font>\n%s\n", runmode, YOD_DOTLINE);
 	} else {
-		php_printf("\n%s\nYod is running in debug mode:\n%s\n", YOD_DIVLINE, YOD_DOTLINE);
+		php_printf("\n%s\nYod is running in debug mode (%d)\n%s\n", YOD_DIVLINE, runmode, YOD_DOTLINE);
 	}
 
 	zend_hash_internal_pointer_reset(Z_ARRVAL_P(YOD_G(debugs)));
-	while (zend_hash_get_current_data(Z_ARRVAL_P(YOD_G(debugs)), (void **) &ppzval) == SUCCESS) {
-		if (Z_TYPE_PP(ppzval) == IS_STRING) {
-			PHPWRITE(Z_STRVAL_PP(ppzval), Z_STRLEN_PP(ppzval));
+	while (zend_hash_get_current_data(Z_ARRVAL_P(YOD_G(debugs)), (void **) &data) == SUCCESS) {
+		if (Z_TYPE_PP(data) == IS_STRING) {
+			PHPWRITE(Z_STRVAL_PP(data), Z_STRLEN_PP(data));
 		}
 		zend_hash_move_forward(Z_ARRVAL_P(YOD_G(debugs)));
 	}
@@ -242,7 +271,7 @@ void yod_debugs(TSRMLS_D) {
 	efree(buffer);
 
 	if (ob_start == SUCCESS) {
-		if (runmode & 4) {
+		if (runmode & 8) {
 			MAKE_STD_ZVAL(ob_buffer);
 
 #ifdef PHP_OUTPUT_NEWAPI
@@ -257,10 +286,8 @@ void yod_debugs(TSRMLS_D) {
 			zval_ptr_dtor(&ob_buffer);
 		}
 
-
-
 		// runmode
-		if (runmode & 2) {
+		if (runmode & 4) {
 #ifdef PHP_OUTPUT_NEWAPI
 			php_output_end(TSRMLS_C);
 #else

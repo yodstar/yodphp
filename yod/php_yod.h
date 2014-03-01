@@ -51,16 +51,17 @@ extern zend_module_entry yod_module_entry;
 #endif
 
 #if PHP_YOD_DEBUG
-#define YOD_VERSION					"1.2.0-dev"
+#define YOD_VERSION					"1.2.1-dev"
 #define YOD_RUNMODE					7
 #else
-#define YOD_VERSION					"1.2.0"
-#define YOD_RUNMODE					1
+#define YOD_VERSION					"1.2.1"
+#define YOD_RUNMODE					3
 #endif
 
-#define YOD_CHARSET					"utf-8"
-#define YOD_PATHVAR					""
 #define YOD_FORWARD					5
+#define YOD_CHARSET					"utf-8"
+#define YOD_VIEWEXT					".php"
+#define YOD_PATHVAR					""
 
 #define YOD_APP_CNAME				"Yod_Application"
 
@@ -108,27 +109,35 @@ extern zend_module_entry yod_module_entry;
 #define yod_database_t		zval
 #define yod_dbpdo_t			zval
 
-void yod_do_exit(TSRMLS_D);
 long yod_runmode(TSRMLS_D);
-char *yod_charset(TSRMLS_D);
-char *yod_pathvar(TSRMLS_D);
-char *yod_extpath(TSRMLS_D);
-char *yod_runpath(TSRMLS_D);
 long yod_forward(TSRMLS_D);
+char *yod_charset(TSRMLS_D);
+char *yod_viewext(TSRMLS_D);
+char *yod_pathvar(TSRMLS_D);
+char *yod_runpath(TSRMLS_D);
+char *yod_extpath(TSRMLS_D);
+char *yod_logpath(TSRMLS_D);
+void yod_loading(TSRMLS_D);
+
+int yod_do_exit(long status TSRMLS_DC);
+int yod_register(char *moduel, char *method TSRMLS_DC);
 int yod_include(char *filepath, zval **retval, int dtor TSRMLS_DC);
 int yod_call_method(zval *object, char *func, int func_len, zval **result, int pcount, zval *arg1, zval *arg2, zval *arg3, zval *arg4 TSRMLS_DC);
 
 ZEND_BEGIN_MODULE_GLOBALS(yod)
 	double		runtime;
+	long		forward;
 	long		runmode;
 	char		*charset;
+	char		*viewext;
 	char		*pathvar;
-	char		*extpath;
 	char		*runpath;
+	char		*extpath;
+	char		*logpath;
 	zval		*yodapp;
 	int			exited;
 	int			running;
-	long		forward;
+	int			loading;
 
 #if PHP_YOD_DEBUG
 	zval		*debugs;

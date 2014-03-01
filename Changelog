@@ -1,4 +1,13 @@
-This file documents changes for Yod Framework release 1.2.0 and earlier.
+This file documents changes for Yod Framework release 1.2.1 and earlier.
+
+version 1.2.1:
+
+  - Add constants YOD_VIEWEXT, YOD_LOGPATH
+  - Change the auto running mechanism
+  - Change the autoload mechanism
+  - Add the error handling
+  - Add a protected method dbmodel in the class Yod_Controller and Yod_Model
+  - Add the class Yod_DbPdo to the Yod extension
 
 version 1.2.0:
 
