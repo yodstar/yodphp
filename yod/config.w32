@@ -1,0 +1,10 @@
+// $Id: config.w32 765 2013-11-11 11:11:11Z baoqiang $
+// vim:ft=javascript
+
+ARG_ENABLE("yod", "enable yod support", "no");
+
+if (PHP_YOD == "yes") {
+	EXTENSION("yod", "yod.c yod_application.c yod_request.c yod_controller.c yod_action.c yod_widget.c yod_model.c yod_database.c yod_dbpdo.c");
+
+	AC_DEFINE("HAVE_YOD", 1, "Have Yod Support");
+}
