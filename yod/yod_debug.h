@@ -26,7 +26,7 @@
 
 #if PHP_YOD_DEBUG
 void yod_debugf(const char *format,...);
-void yod_debugl(char *sline TSRMLS_DC);
+void yod_debugl(int ltype TSRMLS_DC);
 void yod_debugz(zval *pzval, int dump TSRMLS_DC);
 void yod_debugs(TSRMLS_D);
 #endif

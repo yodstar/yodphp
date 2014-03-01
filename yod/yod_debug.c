@@ -1,17 +1,17 @@
 /*
-+----------------------------------------------------------------------+
-| Yod Framework as PHP extension										 |
-+----------------------------------------------------------------------+
-| This source file is subject to version 3.01 of the PHP license,		 |
-| that is bundled with this package in the file LICENSE, and is		 |
-| available through the world-wide-web at the following url:			 |
-| http://www.php.net/license/3_01.txt									 |
-| If you did not receive a copy of the PHP license and are unable to	 |
-| obtain it through the world-wide-web, please send a note to			 |
-| license@php.net so we can mail you a copy immediately.				 |
-+----------------------------------------------------------------------+
-| Author: Baoqiang Su  <zmrnet@qq.com>								 |
-+----------------------------------------------------------------------+
+  +----------------------------------------------------------------------+
+  | Yod Framework as PHP extension										 |
+  +----------------------------------------------------------------------+
+  | This source file is subject to version 3.01 of the PHP license,		 |
+  | that is bundled with this package in the file LICENSE, and is		 |
+  | available through the world-wide-web at the following url:			 |
+  | http://www.php.net/license/3_01.txt									 |
+  | If you did not receive a copy of the PHP license and are unable to	 |
+  | obtain it through the world-wide-web, please send a note to			 |
+  | license@php.net so we can mail you a copy immediately.				 |
+  +----------------------------------------------------------------------+
+  | Author: Baoqiang Su  <zmrnet@qq.com>								 |
+  +----------------------------------------------------------------------+
 */
 
 /* $Id$ */
@@ -90,9 +90,9 @@ void yod_debugf(const char *format,...) {
 }
 /* }}} */
 
-/** {{{ void yod_debugl(char *sline TSRMLS_DC)
+/** {{{ void yod_debugl(int ltype TSRMLS_DC)
 */
-void yod_debugl(char *sline TSRMLS_DC) {
+void yod_debugl(int ltype TSRMLS_DC) {
 	char *buffer;
 	uint buffer_len;
 
@@ -100,19 +100,15 @@ void yod_debugl(char *sline TSRMLS_DC) {
 		return;
 	}
 
-	if (sline) {
-		switch (sline[0]) {
-			case '-' :
-				buffer_len = spprintf(&buffer, 0, "%s\n", YOD_DOTLINE);
-				break;
-			case '=' :
-				buffer_len = spprintf(&buffer, 0, "%s\n", YOD_DIVLINE);
-				break;
-			default :
-				buffer_len = spprintf(&buffer, 0, "%s\n", sline ? sline : YOD_DOTLINE);
-		}
-	} else {
-		buffer_len = spprintf(&buffer, 0, "%s\n", YOD_DOTLINE);
+	switch (ltype) {
+		case 1 :
+			buffer_len = spprintf(&buffer, 0, "%s\n", YOD_DOTLINE);
+			break;
+		case 2 :
+			buffer_len = spprintf(&buffer, 0, "%s\n", YOD_DIVLINE);
+			break;
+		default :
+			buffer_len = spprintf(&buffer, 0, "%s\n", YOD_DOTLINE);
 	}
 
 	add_next_index_string(YOD_G(debugs), buffer, 1);
@@ -179,11 +175,12 @@ int yod_debugw(char *data, uint data_len TSRMLS_DC) {
 	
 	char *logpath, *logfile;
 
-	if (data_len == 0) {
+	logpath = yod_logpath(TSRMLS_C);
+
+	if (logpath == NULL || data_len == 0) {
 		return 0;
 	}
 
-	logpath = yod_logpath(TSRMLS_C);
 	if (php_stream_stat_path(logpath, &ssb) == FAILURE) {
 		if (!php_stream_mkdir(logpath, 0750, REPORT_ERRORS, NULL)) {
 			return 0;
@@ -232,7 +229,7 @@ void yod_debugs(TSRMLS_D) {
 #if PHP_YOD_DEBUG
 	yod_debugf("yod_debugs()");
 #endif
-	
+
 	runmode = yod_runmode(TSRMLS_C);
 
 	if ((runmode & 12) == 0) {
@@ -255,7 +252,7 @@ void yod_debugs(TSRMLS_D) {
 	if (SG(request_info).request_method) {
 		php_printf("\n<pre><hr><font color=\"red\">Yod is running in debug mode (%d)</font>\n%s\n", runmode, YOD_DOTLINE);
 	} else {
-		php_printf("\n%s\nYod is running in debug mode (%d)\n%s\n", YOD_DIVLINE, runmode, YOD_DOTLINE);
+		php_printf("\n%s\nYod is running in debug mode (%d)\n%s\n", YOD_DOTLINE, runmode, YOD_DOTLINE);
 	}
 
 	zend_hash_internal_pointer_reset(Z_ARRVAL_P(YOD_G(debugs)));

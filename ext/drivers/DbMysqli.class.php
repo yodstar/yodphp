@@ -42,7 +42,7 @@ class Yod_DbMysqli extends Yod_Database
 			return $this->_linkid = $this->_linkids[$linknum];
 		}
 		if (empty($config['dbname'])) {
-			trigger_error('Database DSN configure error', E_USER_ERROR);
+			trigger_error('Mysqli DSN configure error', E_USER_ERROR);
 			return false;
 		}
 		$config['host'] = empty($config['host']) ? 'localhost' : $config['host'];
@@ -132,8 +132,8 @@ class Yod_DbMysqli extends Yod_Database
 					return $retval;
 
 				}
-				$this->_errno = $mysqli_stmt->errno();
-				$this->_error = $mysqli_stmt->error();
+				$this->_errno = $mysqli_stmt->errno;
+				$this->_error = $mysqli_stmt->error;
 				$mysqli_stmt->close();
 			}
 		}
@@ -200,6 +200,22 @@ class Yod_DbMysqli extends Yod_Database
 			}
 		}
 
+		return false;
+	}
+
+	/**
+	 * count
+	 * @access public
+	 * @return mixed
+	 */
+	public function count($result = null)
+	{
+		if (is_null($result)) {
+			$result = $this->_result;
+		}
+		if ($result instanceof mysqli_result) {
+			return $result->num_rows;
+		}
 		return false;
 	}
 

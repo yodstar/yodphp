@@ -1,4 +1,4 @@
-# yodphp - Yod PHP Framework
+# yodphp - Yod Framework for PHP
 
 It is a simple PHP framework which is written in C and build as PHP extension.
 
@@ -9,6 +9,35 @@ It is a simple PHP framework which is written in C and build as PHP extension.
 - http://yodphp.com
 
 ## Tutorial
+
+### installation
+- Compiling Yod:
+
+```
+$PHP_BIN/phpize
+./configure --with-php-config=$PHP_BIN/php-config
+make
+make install
+```
+
+- Compiling Yod with debug mode:
+
+```
+$PHP_BIN/phpize
+./configure --enable-yod-debug --with-php-config=$PHP_BIN/php-config
+make
+make install
+```
+
+- Cross compiling Yod for i686-linux:
+
+```
+$PHP_BIN/phpize
+./configure --enable-yod-debug --with-php-config=$PHP_BIN/php-config \
+CCFLAGS="-m32" CPPFLAGS="-m32" CXXFLAGS="-m32" CFLAGS="-m32"
+make
+make install
+```
 
 ### layout
 - A classic Application directory layout:
@@ -96,7 +125,7 @@ return array(
 	// db_dsn
 	'db_dsn' => array(
 		'type'   => 'pdo',
-		'dsn'    => 'mysql:host=localhost;port=3306;dbname=test',
+		'pdsn'   => 'mysql:host=localhost;port=3306;dbname=test',
 		'host'   => 'localhost',
 		'port'   => '3306',
 		'user'   => 'root',

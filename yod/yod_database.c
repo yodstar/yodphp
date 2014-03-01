@@ -118,6 +118,10 @@ ZEND_BEGIN_ARG_INFO_EX(yod_database_query_arginfo, 0, 0, 1)
 	ZEND_ARG_INFO(0, params)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(yod_database_count_arginfo, 0, 0, 0)
+	ZEND_ARG_INFO(0, result)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(yod_database_fetch_arginfo, 0, 0, 0)
 	ZEND_ARG_INFO(0, result)
 ZEND_END_ARG_INFO()
@@ -289,7 +293,7 @@ int yod_database_getinstance(zval *config, yod_database_t *retval TSRMLS_DC) {
 
 	p_db = zend_read_static_property(yod_database_ce, ZEND_STRL("_db"), 1 TSRMLS_CC);
 	if (p_db && Z_TYPE_P(p_db) == IS_ARRAY) {
-		if (zend_hash_find(Z_ARRVAL_P(p_db), md5key, strlen(md5key) + 1, (void **)&ppval) == SUCCESS) {
+		if (zend_hash_find(Z_ARRVAL_P(p_db), md5key, 33, (void **)&ppval) == SUCCESS) {
 			ZVAL_ZVAL(retval, *ppval, 1, 0);
 			zval_ptr_dtor(&config1);
 			efree(classname);
@@ -338,7 +342,7 @@ int yod_database_getinstance(zval *config, yod_database_t *retval TSRMLS_DC) {
 	} else {
 		array_init(p_db1);
 	}
-	add_assoc_zval_ex(p_db1, md5key, strlen(md5key) + 1, object);
+	add_assoc_zval_ex(p_db1, md5key, 33, object);
 	zend_update_static_property(yod_database_ce, ZEND_STRL("_db"), p_db1 TSRMLS_CC);
 	zval_ptr_dtor(&p_db1);
 
@@ -456,7 +460,7 @@ int yod_database_dbconfig(yod_database_t *object, zval *config, long linknum, zv
 	}
 
 	if (Z_TYPE_P(retval) == IS_ARRAY) {
-		add_assoc_long(retval, "linknum", linknum);
+		add_assoc_long_ex(retval, ZEND_STRS("linknum"), linknum);
 	}
 
 	return 1;
@@ -521,9 +525,9 @@ int yod_database_create(yod_database_t *object, zval *fields, char *table, uint 
 	efree(values);
 
 #if PHP_YOD_DEBUG
-	yod_debugl("-" TSRMLS_CC);
+	yod_debugl(1 TSRMLS_CC);
 	yod_debugf(squery);
-	yod_debugl("-" TSRMLS_CC);
+	yod_debugl(1 TSRMLS_CC);
 #endif
 
 	MAKE_STD_ZVAL(query);
@@ -622,9 +626,9 @@ int yod_database_insert(yod_database_t *object, zval *data, char *table, uint ta
 	efree(values);
 
 #if PHP_YOD_DEBUG
-	yod_debugl("-" TSRMLS_CC);
+	yod_debugl(1 TSRMLS_CC);
 	yod_debugf(squery);
-	yod_debugl("-" TSRMLS_CC);
+	yod_debugl(1 TSRMLS_CC);
 #endif
 
 	MAKE_STD_ZVAL(query);
@@ -716,9 +720,9 @@ int yod_database_update(yod_database_t *object, zval *data, char *table, uint ta
 	efree(update);
 
 #if PHP_YOD_DEBUG
-	yod_debugl("-" TSRMLS_CC);
+	yod_debugl(1 TSRMLS_CC);
 	yod_debugf(squery);
-	yod_debugl("-" TSRMLS_CC);
+	yod_debugl(1 TSRMLS_CC);
 #endif
 
 	MAKE_STD_ZVAL(query);
@@ -765,9 +769,9 @@ int yod_database_delete(yod_database_t *object, char *table, uint table_len, cha
 	}
 	
 #if PHP_YOD_DEBUG
-	yod_debugl("-" TSRMLS_CC);
+	yod_debugl(1 TSRMLS_CC);
 	yod_debugf(squery);
-	yod_debugl("-" TSRMLS_CC);
+	yod_debugl(1 TSRMLS_CC);
 #endif
 
 	MAKE_STD_ZVAL(query);
@@ -859,9 +863,9 @@ int yod_database_select(yod_database_t *object, zval *select, char *table, uint 
 	}
 
 #if PHP_YOD_DEBUG
-	yod_debugl("-" TSRMLS_CC);
+	yod_debugl(1 TSRMLS_CC);
 	yod_debugf(squery);
-	yod_debugl("-" TSRMLS_CC);
+	yod_debugl(1 TSRMLS_CC);
 #endif
 
 	MAKE_STD_ZVAL(query);
@@ -1119,6 +1123,7 @@ zend_function_entry yod_database_methods[] = {
 	ZEND_ABSTRACT_ME(yod_database, fields,		yod_database_fields_arginfo)
 	ZEND_ABSTRACT_ME(yod_database, execute,		yod_database_execute_arginfo)
 	ZEND_ABSTRACT_ME(yod_database, query,		yod_database_query_arginfo)
+	ZEND_ABSTRACT_ME(yod_database, count,		yod_database_count_arginfo)
 	ZEND_ABSTRACT_ME(yod_database, fetch,		yod_database_fetch_arginfo)
 	ZEND_ABSTRACT_ME(yod_database, fetchAll,	yod_database_fetchall_arginfo)
 	ZEND_ABSTRACT_ME(yod_database, transaction,	yod_database_transaction_arginfo)

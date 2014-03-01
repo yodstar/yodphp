@@ -1,4 +1,15 @@
-This file documents changes for Yod Framework release 1.2.1 and earlier.
+This file documents changes for Yod Framework release 1.2.2 and earlier.
+
+version 1.2.2:
+
+  - Change the auto running mechanism
+  - Add some public methods in the class Yod_Request
+  - Add a public method select in the class Yod_Model
+  - Add a public method field in the class Yod_DbModel
+  - Change the method select of class Yod_DbModel
+  - Add an abstract method count in the class Yod_Database
+  - Add a public method count in the class Yod_DbPdo
+  - Change the method find of class Yod_Model an Yod_DbModel
 
 version 1.2.1:
 

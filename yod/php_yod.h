@@ -51,10 +51,10 @@ extern zend_module_entry yod_module_entry;
 #endif
 
 #if PHP_YOD_DEBUG
-#define YOD_VERSION					"1.2.1-dev"
+#define YOD_VERSION					"1.2.2-dev"
 #define YOD_RUNMODE					7
 #else
-#define YOD_VERSION					"1.2.1"
+#define YOD_VERSION					"1.2.2"
 #define YOD_RUNMODE					3
 #endif
 
@@ -135,9 +135,11 @@ ZEND_BEGIN_MODULE_GLOBALS(yod)
 	char		*extpath;
 	char		*logpath;
 	zval		*yodapp;
+	zval		*config;
 	int			exited;
 	int			running;
 	int			loading;
+	zval		*imports;
 
 #if PHP_YOD_DEBUG
 	zval		*debugs;

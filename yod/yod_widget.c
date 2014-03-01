@@ -95,9 +95,9 @@ static void yod_widget_construct(yod_widget_t *object, yod_request_t *request, c
 	spprintf(&tpl_path, 0, "%s/widgets", yod_runpath(TSRMLS_C));
 	MAKE_STD_ZVAL(tpl_view);
 	array_init(tpl_view);
-	add_assoc_zval(tpl_view, "tpl_data", tpl_data);
-	add_assoc_string(tpl_view, "tpl_path", tpl_path, 1);
-	add_assoc_string(tpl_view, "tpl_file", "", 1);
+	add_assoc_zval_ex(tpl_view, ZEND_STRS("tpl_data"), tpl_data);
+	add_assoc_string_ex(tpl_view, ZEND_STRS("tpl_path"), tpl_path, 1);
+	add_assoc_string_ex(tpl_view, ZEND_STRS("tpl_file"), "", 1);
 	zend_update_property(Z_OBJCE_P(object), object, ZEND_STRL("_view"), tpl_view TSRMLS_CC);
 	zval_ptr_dtor(&tpl_view);
 	efree(tpl_path);

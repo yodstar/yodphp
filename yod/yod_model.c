@@ -56,7 +56,7 @@ ZEND_BEGIN_ARG_INFO_EX(yod_model_find_arginfo, 0, 0, 0)
 	ZEND_ARG_INFO(0, select)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(yod_model_findall_arginfo, 0, 0, 0)
+ZEND_BEGIN_ARG_INFO_EX(yod_model_select_arginfo, 0, 0, 0)
 	ZEND_ARG_INFO(0, where)
 	ZEND_ARG_INFO(0, params)
 	ZEND_ARG_INFO(0, select)
@@ -193,9 +193,7 @@ int yod_model_construct(yod_model_t *object, char *name, uint name_len, zval *co
 	yod_debugf("yod_model_init()");
 #endif
 
-	if (zend_hash_exists(&(Z_OBJCE_P(object)->function_table), ZEND_STRS("init"))) {
-		zend_call_method_with_0_params(&object, Z_OBJCE_P(object), NULL, "init", NULL);
-	}
+	zend_call_method_with_0_params(&object, Z_OBJCE_P(object), NULL, "init", NULL);
 
 	return 1;
 }
@@ -358,22 +356,23 @@ PHP_METHOD(yod_model, getInstance) {
 }
 /* }}} */
 
-/** {{{ proto public Yod_Model::find($where = '', $params = array(), $select = '*')
+/** {{{ proto public Yod_Model::find($where = null, $params = array(), $select = '*')
 */
 PHP_METHOD(yod_model, find) {
 	yod_database_t *yoddb;
 	yod_model_t *object;
 	zval *table, *result, *retval;
-	zval *params = NULL, *select = NULL;
-	char *where = NULL;
-	uint where_len = 0;
+	zval *where = NULL, *params = NULL, *select = NULL;
+	char *where1 = NULL;
+	uint where1_len = 0;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|szz!", &where, &where_len, &params, &select) == FAILURE) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|zzz!", &where, &params, &select) == FAILURE) {
 		return;
 	}
 
 #if PHP_YOD_DEBUG
-	yod_debugf("yod_model_find(%s)", where ? where : "");
+	yod_debugl(1 TSRMLS_CC);
+	yod_debugf("yod_model_find()");
 #endif
 
 	object = getThis();
@@ -387,9 +386,22 @@ PHP_METHOD(yod_model, find) {
 	table = zend_read_property(Z_OBJCE_P(object), object, ZEND_STRL("_table"), 1 TSRMLS_CC);
 	if (table) {
 		convert_to_string(table);
-
+		if (where) {
+			if (Z_TYPE_P(where) == IS_STRING) {
+				if (is_numeric_string(Z_STRVAL_P(where), Z_STRLEN_P(where), NULL, NULL, 0)) {
+					where1_len = spprintf(&where1, 0, "id = %s", Z_LVAL_P(where));
+				} else {
+					where1_len = spprintf(&where1, 0, "%s", Z_STRVAL_P(where));
+				}
+			} else if (Z_TYPE_P(where) == IS_LONG) {
+				where1_len = spprintf(&where1, 0, "id = %ld", Z_LVAL_P(where));
+			}
+		}
 		MAKE_STD_ZVAL(result);
-		yod_database_select(yoddb, select, Z_STRVAL_P(table), Z_STRLEN_P(table), where, where_len, params, ZEND_STRL("LIMIT 1"), result TSRMLS_CC);
+		yod_database_select(yoddb, select, Z_STRVAL_P(table), Z_STRLEN_P(table), where1, where1_len, params, ZEND_STRL("LIMIT 1"), result TSRMLS_CC);
+		if (where1) {
+			efree(where1);
+		}
 		if (result) {
 			zend_call_method_with_1_params(&yoddb, Z_OBJCE_P(yoddb), NULL, "fetch", &retval, result);
 			zend_call_method_with_0_params(&yoddb, Z_OBJCE_P(yoddb), NULL, "free", NULL);
@@ -404,22 +416,23 @@ PHP_METHOD(yod_model, find) {
 }
 /* }}} */
 
-/** {{{ proto public Yod_Model::findAll($where = '', $params = array(), $select = '*')
+/** {{{ proto public Yod_Model::select($where = null, $params = array(), $select = '*')
 */
-PHP_METHOD(yod_model, findAll) {
+PHP_METHOD(yod_model, select) {
 	yod_database_t *yoddb;
 	yod_model_t *object;
 	zval *table, *result, *retval;
-	zval *params = NULL, *select = NULL;
-	char *where = NULL;
-	uint where_len = 0;
+	zval *where = NULL, *params = NULL, *select = NULL;
+	char *where1 = NULL;
+	uint where1_len = 0;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|szz!", &where, &where_len, &params, &select) == FAILURE) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|zzz!", &where, &params, &select) == FAILURE) {
 		return;
 	}
 
 #if PHP_YOD_DEBUG
-	yod_debugf("yod_model_findall(%s)", where ? where : "");
+	yod_debugl(1 TSRMLS_CC);
+	yod_debugf("yod_model_select()");
 #endif
 
 	object = getThis();
@@ -433,9 +446,22 @@ PHP_METHOD(yod_model, findAll) {
 	table = zend_read_property(Z_OBJCE_P(object), object, ZEND_STRL("_table"), 1 TSRMLS_CC);
 	if (table) {
 		convert_to_string(table);
-
+		if (where) {
+			if (Z_TYPE_P(where) == IS_STRING) {
+				if (is_numeric_string(Z_STRVAL_P(where), Z_STRLEN_P(where), NULL, NULL, 0)) {
+					where1_len = spprintf(&where1, 0, "id = %s", Z_LVAL_P(where));
+				} else {
+					where1_len = spprintf(&where1, 0, "%s", Z_STRVAL_P(where));
+				}
+			} else if (Z_TYPE_P(where) == IS_LONG) {
+				where1_len = spprintf(&where1, 0, "id = %ld", Z_LVAL_P(where));
+			}
+		}
 		MAKE_STD_ZVAL(result);
-		yod_database_select(yoddb, select, Z_STRVAL_P(table), Z_STRLEN_P(table), where, where_len, params, ZEND_STRL(""), result TSRMLS_CC);
+		yod_database_select(yoddb, select, Z_STRVAL_P(table), Z_STRLEN_P(table), where1, where1_len, params, ZEND_STRL(""), result TSRMLS_CC);
+		if (where1) {
+			efree(where1);
+		}
 		if (result) {
 			zend_call_method_with_1_params(&yoddb, Z_OBJCE_P(yoddb), NULL, "fetchall", &retval, result);
 			zend_call_method_with_0_params(&yoddb, Z_OBJCE_P(yoddb), NULL, "free", NULL);
@@ -465,6 +491,7 @@ PHP_METHOD(yod_model, count) {
 	}
 
 #if PHP_YOD_DEBUG
+	yod_debugl(1 TSRMLS_CC);
 	yod_debugf("yod_model_count(%s)", where ? where : "");
 #endif
 
@@ -482,7 +509,7 @@ PHP_METHOD(yod_model, count) {
 
 		MAKE_STD_ZVAL(result);
 		MAKE_STD_ZVAL(select);
-		ZVAL_STRING(select, "COUNT(*)", 1);
+		ZVAL_STRINGL(select, "COUNT(*)", 8, 1);
 		yod_database_select(yoddb, select, Z_STRVAL_P(table), Z_STRLEN_P(table), where, where_len, params, ZEND_STRL("LIMIT 1"), result TSRMLS_CC);
 		zval_ptr_dtor(&select);
 		if (result) {
@@ -520,6 +547,7 @@ PHP_METHOD(yod_model, save) {
 	}
 
 #if PHP_YOD_DEBUG
+	yod_debugl(1 TSRMLS_CC);
 	yod_debugf("yod_model_save(%s)", where ? where : "");
 #endif
 
@@ -564,6 +592,7 @@ PHP_METHOD(yod_model, remove) {
 	}
 
 #if PHP_YOD_DEBUG
+	yod_debugl(1 TSRMLS_CC);
 	yod_debugf("yod_model_remove(%s)", where ? where : "");
 #endif
 
@@ -655,6 +684,7 @@ PHP_METHOD(yod_model, model) {
 	}
 
 #if PHP_YOD_DEBUG
+	yod_debugl(1 TSRMLS_CC);
 	yod_debugf("yod_model_model(%s)", name ? name : "");
 #endif
 
@@ -678,6 +708,7 @@ PHP_METHOD(yod_model, dbmodel) {
 	}
 
 #if PHP_YOD_DEBUG
+	yod_debugl(1 TSRMLS_CC);
 	yod_debugf("yod_model_dbmodel(%s)", name ? name : "");
 #endif
 
@@ -699,7 +730,7 @@ zend_function_entry yod_model_methods[] = {
 	PHP_ME(yod_model, init,				yod_model_init_arginfo,			ZEND_ACC_PROTECTED)
 	PHP_ME(yod_model, getInstance,		yod_model_getinstance_arginfo,	ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
 	PHP_ME(yod_model, find,				yod_model_find_arginfo,			ZEND_ACC_PUBLIC)
-	PHP_ME(yod_model, findAll,			yod_model_findall_arginfo,		ZEND_ACC_PUBLIC)
+	PHP_ME(yod_model, select,			yod_model_select_arginfo,		ZEND_ACC_PUBLIC)
 	PHP_ME(yod_model, count,			yod_model_count_arginfo,		ZEND_ACC_PUBLIC)
 	PHP_ME(yod_model, save,				yod_model_save_arginfo,			ZEND_ACC_PUBLIC)
 	PHP_ME(yod_model, remove,			yod_model_remove_arginfo,		ZEND_ACC_PUBLIC)
@@ -708,7 +739,8 @@ zend_function_entry yod_model_methods[] = {
 	PHP_ME(yod_model, import,			yod_model_import_arginfo,		ZEND_ACC_PROTECTED)
 	PHP_ME(yod_model, model,			yod_model_model_arginfo,		ZEND_ACC_PROTECTED)
 	PHP_ME(yod_model, dbmodel,			yod_model_dbmodel_arginfo,		ZEND_ACC_PROTECTED)
-	PHP_ME(yod_model, __destruct,		NULL,	ZEND_ACC_PUBLIC|ZEND_ACC_DTOR)
+	PHP_ME(yod_model, __destruct,		NULL,		ZEND_ACC_PUBLIC|ZEND_ACC_DTOR)
+	PHP_MALIAS(yod_model, findAll,		select,		yod_model_select_arginfo,		ZEND_ACC_PUBLIC)
 	{NULL, NULL, NULL}
 };
 /* }}} */

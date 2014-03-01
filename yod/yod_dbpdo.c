@@ -111,6 +111,10 @@ ZEND_BEGIN_ARG_INFO_EX(yod_dbpdo_query_arginfo, 0, 0, 1)
 	ZEND_ARG_INFO(0, params)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(yod_dbpdo_count_arginfo, 0, 0, 0)
+	ZEND_ARG_INFO(0, result)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(yod_dbpdo_fetch_arginfo, 0, 0, 0)
 	ZEND_ARG_INFO(0, result)
 ZEND_END_ARG_INFO()
@@ -198,15 +202,21 @@ static int yod_dbpdo_connect(yod_dbpdo_t *object, zval *config, long linknum, zv
 	}
 
 	if (Z_TYPE_P(dbconfig) == IS_ARRAY) {
-		if (zend_hash_find(Z_ARRVAL_P(dbconfig), ZEND_STRS("dsn"), (void **)&ppval) == FAILURE ||
+		// db_dsn.pdsn
+		if (zend_hash_find(Z_ARRVAL_P(dbconfig), ZEND_STRS("pdsn"), (void **)&ppval) == FAILURE ||
 			Z_TYPE_PP(ppval) != IS_STRING || Z_STRLEN_PP(ppval) == 0
 		) {
-			php_error_docref(NULL TSRMLS_CC, E_ERROR, "Database DSN configure error");
-			zval_ptr_dtor(&dbconfig);
-			if (retval) {
-				ZVAL_BOOL(retval, 0);
+			// db_dsn.dsn
+			if (zend_hash_find(Z_ARRVAL_P(dbconfig), ZEND_STRS("dsn"), (void **)&ppval) == FAILURE ||
+				Z_TYPE_PP(ppval) != IS_STRING || Z_STRLEN_PP(ppval) == 0
+			) {
+				php_error_docref(NULL TSRMLS_CC, E_ERROR, "PDO DSN configure error");
+				zval_ptr_dtor(&dbconfig);
+				if (retval) {
+					ZVAL_BOOL(retval, 0);
+				}
+				return 0;
 			}
-			return 0;
 		}
 
 #if PHP_API_VERSION < 20100412
@@ -223,7 +233,7 @@ static int yod_dbpdo_connect(yod_dbpdo_t *object, zval *config, long linknum, zv
 			MAKE_STD_ZVAL(argv[2]);
 			MAKE_STD_ZVAL(argv[3]);
 
-			// argv.dsn
+			// argv.pdsn
 			ZVAL_STRINGL(argv[0] , Z_STRVAL_PP(ppval), Z_STRLEN_PP(ppval), 1);
 
 			// argv.user
@@ -499,6 +509,39 @@ int yod_dbpdo_query(yod_dbpdo_t *object, zval *query, zval *params, zval *retval
 		}
 	} else {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Call to a member function query() on a non-object");
+	}
+
+	ZVAL_BOOL(retval, 0);
+	return 0;
+}
+/* }}} */
+
+/** {{{ int yod_dbpdo_count(yod_dbpdo_t *object, zval *result, zval *retval TSRMLS_DC)
+*/
+int yod_dbpdo_count(yod_dbpdo_t *object, zval *result, zval *retval TSRMLS_DC) {
+	zval *pzval;
+
+#if PHP_YOD_DEBUG
+	yod_debugf("yod_dbpdo_count()");
+#endif
+
+	if (!object) {
+		ZVAL_BOOL(retval, 0);
+		return 0;
+	}
+
+	if (!result) {
+		result = zend_read_property(Z_OBJCE_P(object), object, ZEND_STRL("_result"), 1 TSRMLS_CC);
+	}
+
+	if (result && Z_TYPE_P(result) == IS_OBJECT) {
+		zend_call_method_with_0_params(&result, Z_OBJCE_P(result), NULL, "rowcount", &pzval);
+		if (pzval) {
+			ZVAL_ZVAL(retval, pzval, 1, 1);
+			return 1;
+		}
+	} else {
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Call to a member function count() on a non-object");
 	}
 
 	ZVAL_BOOL(retval, 0);
@@ -789,6 +832,19 @@ PHP_METHOD(yod_dbpdo, query) {
 }
 /* }}} */
 
+/** {{{ proto public Yod_DbPdo::count($result = null)
+*/
+PHP_METHOD(yod_dbpdo, count) {
+	zval *result = NULL;
+
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|z!", &result) == FAILURE) {
+		return;
+	}
+
+	yod_dbpdo_count(getThis(), result, return_value TSRMLS_CC);
+}
+/* }}} */
+
 /** {{{ proto public Yod_DbPdo::fetch($result = null)
 */
 PHP_METHOD(yod_dbpdo, fetch) {
@@ -1076,6 +1132,7 @@ zend_function_entry yod_dbpdo_methods[] = {
 	PHP_ME(yod_dbpdo, fields,		yod_dbpdo_fields_arginfo,			ZEND_ACC_PUBLIC)
 	PHP_ME(yod_dbpdo, execute,		yod_dbpdo_execute_arginfo,			ZEND_ACC_PUBLIC)
 	PHP_ME(yod_dbpdo, query,		yod_dbpdo_query_arginfo,			ZEND_ACC_PUBLIC)
+	PHP_ME(yod_dbpdo, count,		yod_dbpdo_count_arginfo,			ZEND_ACC_PUBLIC)
 	PHP_ME(yod_dbpdo, fetch,		yod_dbpdo_fetch_arginfo,			ZEND_ACC_PUBLIC)
 	PHP_ME(yod_dbpdo, fetchAll,		yod_dbpdo_fetchall_arginfo,			ZEND_ACC_PUBLIC)
 	PHP_ME(yod_dbpdo, transaction,	yod_dbpdo_transaction_arginfo,		ZEND_ACC_PUBLIC)

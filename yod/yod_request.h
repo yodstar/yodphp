@@ -28,7 +28,7 @@
 
 extern zend_class_entry *yod_request_ce;
 
-zval *yod_request_construct(zval *object, char *route, size_t route_len TSRMLS_DC);
+zval *yod_request_construct(zval *object, char *route, uint route_len TSRMLS_DC);
 int yod_request_dispatch(yod_request_t *object TSRMLS_DC);
 void yod_request_error404(yod_request_t *object, zval *html TSRMLS_DC);
 void yod_request_erroraction(yod_request_t *object TSRMLS_DC);

@@ -39,7 +39,7 @@ class Yod_DbMysql extends Yod_Database
 			return $this->_linkid = $this->_linkids[$linknum];
 		}
 		if (empty($config['dbname'])) {
-			trigger_error('Database DSN configure error', E_USER_ERROR);
+			trigger_error('Mysql DSN configure error', E_USER_ERROR);
 			return false;
 		}
 		$config['host'] = empty($config['host']) ? 'localhost' : $config['host'];
@@ -153,6 +153,19 @@ class Yod_DbMysql extends Yod_Database
 			trigger_error($error, E_USER_WARNING);
 		}
 		return false;
+	}
+
+	/**
+	 * count
+	 * @access public
+	 * @return mixed
+	 */
+	public function count($result = null)
+	{
+		if (is_null($result)) {
+			$result = $this->_result;
+		}
+		return $result ? mysql_num_rows($result) : false;
 	}
 
 	/**

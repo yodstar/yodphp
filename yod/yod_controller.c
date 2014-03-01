@@ -197,10 +197,11 @@ static void yod_controller_run(yod_controller_t *object TSRMLS_DC) {
 	yod_request_t *request;
 	zval *cname, *action, *params, *target;
 	char *method, *classname, *classpath;
-	size_t method_len, classname_len;
+	uint method_len, classname_len;
 	zend_class_entry **pce = NULL;
 	
 #if PHP_YOD_DEBUG
+	yod_debugl(1 TSRMLS_CC);
 	yod_debugf("yod_controller_run()");
 #endif
 
@@ -317,9 +318,9 @@ void yod_controller_construct(yod_controller_t *object, yod_request_t *request, 
 	spprintf(&tpl_path, 0, "%s/views", yod_runpath(TSRMLS_C));
 	MAKE_STD_ZVAL(tpl_view);
 	array_init(tpl_view);
-	add_assoc_zval(tpl_view, "tpl_data", tpl_data);
-	add_assoc_string(tpl_view, "tpl_path", tpl_path, 1);
-	add_assoc_string(tpl_view, "tpl_file", "", 1);
+	add_assoc_zval_ex(tpl_view, ZEND_STRS("tpl_data"), tpl_data);
+	add_assoc_string_ex(tpl_view, ZEND_STRS("tpl_path"), tpl_path, 1);
+	add_assoc_string_ex(tpl_view, ZEND_STRS("tpl_file"), "", 1);
 	zend_update_property(Z_OBJCE_P(object), object, ZEND_STRL("_view"), tpl_view TSRMLS_CC);
 	efree(tpl_path);
 	zval_ptr_dtor(&tpl_view);
@@ -490,7 +491,7 @@ static int yod_controller_render(yod_controller_t *object, zval *response, char 
 	}
 
 	tpl_file_len = spprintf(&tpl_file, 0, "%s%s%s", Z_STRVAL_PP(tpl_path), view1, yod_viewext(TSRMLS_C));
-	add_assoc_stringl(tpl_view, "tpl_file", tpl_file, tpl_file_len, 1);
+	add_assoc_stringl_ex(tpl_view, ZEND_STRS("tpl_file"), tpl_file, tpl_file_len, 1);
 	efree(view1);
 
 	// response
@@ -552,9 +553,9 @@ static int yod_controller_render(yod_controller_t *object, zval *response, char 
 }
 /* }}} */
 
-/** {{{ static int yod_controller_display(yod_controller_t *object, char *view, size_t view_len, zval *data TSRMLS_DC)
+/** {{{ static int yod_controller_display(yod_controller_t *object, char *view, uint view_len, zval *data TSRMLS_DC)
 */
-static int yod_controller_display(yod_controller_t *object, char *view, size_t view_len, zval *data TSRMLS_DC) {
+static int yod_controller_display(yod_controller_t *object, char *view, uint view_len, zval *data TSRMLS_DC) {
 	zval *response = NULL;
 
 #if PHP_YOD_DEBUG
@@ -592,13 +593,14 @@ static int yod_controller_display(yod_controller_t *object, char *view, size_t v
 static void yod_controller_widget(yod_controller_t *object, char *route, uint route_len, zval *params TSRMLS_DC) {
 	yod_request_t *request;
 	zval *params1, *target, *action1, *retval, *pzval;
-	char *widget, *action, *classpath, *route1, *route2;
-	char *classname, *key, *value, *token;
-	uint classname_len, key_len;
+	char *classpath, *route1, *route2, *value, *token;
+	char *widget, *action, *classname, *key;
+	uint widget_len, action_len, classname_len, key_len;
 
 	zend_class_entry **pce = NULL;
 
 #if PHP_YOD_DEBUG
+	yod_debugl(1 TSRMLS_CC);
 	if (instanceof_function(Z_OBJCE_P(object), yod_widget_ce TSRMLS_CC)) {
 		yod_debugf("yod_widget_widget(%s)", route ? route : "");
 	} else if (instanceof_function(Z_OBJCE_P(object), yod_action_ce TSRMLS_CC)) {
@@ -629,19 +631,19 @@ static void yod_controller_widget(yod_controller_t *object, char *route, uint ro
 	// widget
 	widget = php_strtok_r(route1, "/", &token);
 	if (widget) {
-		zend_str_tolower(widget, strlen(widget));
+		widget_len = spprintf(&widget, 0, "%s", widget);
+		zend_str_tolower(widget, widget_len);
 		*widget = toupper(*widget);
-		spprintf(&widget, 0, "%s", widget);
 	} else {
-		spprintf(&widget, 0, "Index");
+		widget_len = spprintf(&widget, 0, "Index");
 	}
 
 	action = php_strtok_r(NULL, "/", &token);
 	if (action) {
-		zend_str_tolower(action, strlen(action));
-		spprintf(&action, 0, "%s", action);
+		action_len = spprintf(&action, 0, "%s", action);
+		zend_str_tolower(action, action_len);
 	} else {
-		spprintf(&action, 0, "index");
+		action_len = spprintf(&action, 0, "index");
 	}
 
 	// params
@@ -670,7 +672,7 @@ static void yod_controller_widget(yod_controller_t *object, char *route, uint ro
 	}
 
 	MAKE_STD_ZVAL(action1);
-	ZVAL_STRING(action1, action, 1);
+	ZVAL_STRINGL(action1, action, action_len, 1);
 
 	classname_len = spprintf(&classname, 0, "%sWidget", widget);
 
@@ -831,6 +833,7 @@ PHP_METHOD(yod_controller, model) {
 	}
 
 #if PHP_YOD_DEBUG
+	yod_debugl(1 TSRMLS_CC);
 	yod_debugf("yod_controller_model(%s)", name ? name : "");
 #endif
 
@@ -860,6 +863,7 @@ PHP_METHOD(yod_controller, dbmodel) {
 	}
 
 #if PHP_YOD_DEBUG
+	yod_debugl(1 TSRMLS_CC);
 	yod_debugf("yod_controller_dbmodel(%s)", name ? name : "");
 #endif
 
