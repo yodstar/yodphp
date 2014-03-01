@@ -11,7 +11,7 @@
 
 // yodphp constant
 defined('YOD_RUNTIME') or define('YOD_RUNTIME', microtime(true));
-defined('YOD_VERSION') or define('YOD_VERSION', '1.2.2');
+defined('YOD_VERSION') or define('YOD_VERSION', '1.3.0');
 defined('YOD_FORWARD') or define('YOD_FORWARD', 5);
 defined('YOD_RUNMODE') or define('YOD_RUNMODE', 3);
 defined('YOD_CHARSET') or define('YOD_CHARSET', 'utf-8');
@@ -20,7 +20,7 @@ defined('YOD_PATHVAR') or define('YOD_PATHVAR', '');
 defined('YOD_EXTPATH') or define('YOD_EXTPATH', dirname(__FILE__));
 
 // yodphp autorun
-register_shutdown_function(array('Yod_Application', 'autorun'));
+Yod_Application::autorun();
 
 /**
  * Yod_Application
@@ -203,7 +203,12 @@ final class Yod_Application
 		}
 		if (YOD_RUNMODE & 1) {
 			if (defined('YOD_RUNPATH')) {
+				include $_SERVER['SCRIPT_FILENAME'];
+				if (isset($config)) {
+					$GLOBALS['config'] = $config;
+				}
 				Yod_Application::app()->run();
+				exit;
 			} else {
 				define('YOD_RUNPATH', dirname(__FILE__));
 			}
@@ -1094,6 +1099,9 @@ class Yod_Model
 	/**
 	 * save
 	 * @access public
+	 * @param array		$data
+	 * @param string	$where
+	 * @param array		$params
 	 * @return integer
 	 */
 	public function save($data, $where = '', $params = array())
@@ -1106,8 +1114,23 @@ class Yod_Model
 	}
 
 	/**
+	 * update
+	 * @access public
+	 * @param array		$data
+	 * @param string	$where
+	 * @param array		$params
+	 * @return integer
+	 */
+	public function update($data, $where = '', $params = array())
+	{
+		return $this->_db->update($data, $this->_table, $where, $params);
+	}
+
+	/**
 	 * remove
 	 * @access public
+	 * @param string	$where
+	 * @param array		$params
 	 * @return integer
 	 */
 	public function remove($where, $params = array())
@@ -1321,6 +1344,26 @@ class Yod_DbModel extends Yod_Model
 		} else {
 			$result = $this->_db->update($data, $this->_table, $this->_query['WHERE'], $this->_params);
 		}
+		$this->initQuery();
+		return $result;
+	}
+
+	/**
+	 * update
+	 * @access public
+	 * @param array		$data
+	 * @param string	$where
+	 * @param array		$params
+	 * @return integer
+	 */
+	public function update($data, $where = '', $params = array())
+	{
+		if (empty($this->_table)) {
+			trigger_error('You have an error in your SQL syntax: table name is empty', E_USER_WARNING);
+			return false;
+		}
+		$this->where($where, $params);
+		$result = $this->_db->update($data, $this->_table, $this->_query['WHERE'], $this->_params);
 		$this->initQuery();
 		return $result;
 	}

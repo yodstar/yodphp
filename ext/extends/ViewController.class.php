@@ -1,7 +1,14 @@
 <?php
-/**
- * Yod_ViewController
- */
+// +----------------------------------------------------------------------
+// | yodphp [ Yod PHP Framework ]
+// +----------------------------------------------------------------------
+// | Copyright (c) 2013 http://yodphp.com All rights reserved.
+// +----------------------------------------------------------------------
+// | Licensed ( http://www.apache.org/licenses/LICENSE-2.0 )
+// +----------------------------------------------------------------------
+// | Author: Baoqiang Su <zmrnet@qq.com>
+// +----------------------------------------------------------------------
+
 abstract class Yod_ViewController extends Yod_Controller
 {
 	protected $_view;

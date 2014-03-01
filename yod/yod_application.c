@@ -326,13 +326,11 @@ int yod_application_import(char *alias, uint alias_len, char *classext, uint cla
 	size_t classfile_len, classname_len;
 	zend_class_entry **pce = NULL;
 
+	yod_loading(TSRMLS_C);
+
 #if PHP_YOD_DEBUG
 	yod_debugf("yod_application_import(%s)", alias ? alias : "");
 #endif
-
-	if (!YOD_G(loading)) {
-		yod_loading(TSRMLS_C);
-	}
 
 	if (alias_len == 0) {
 		return 0;
@@ -431,6 +429,7 @@ void yod_application_autorun(TSRMLS_D) {
 	if (zend_get_constant(ZEND_STRL("YOD_RUNPATH"), &runpath TSRMLS_CC)) {
 		SG(headers_sent) = 0;
 
+		yod_loading(TSRMLS_C);
 		yod_application_app(NULL TSRMLS_CC);
 		yod_application_run(TSRMLS_C);
 

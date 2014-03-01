@@ -75,6 +75,12 @@ ZEND_BEGIN_ARG_INFO_EX(yod_dbmodel_save_arginfo, 0, 0, 1)
 	ZEND_ARG_INFO(0, params)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(yod_dbmodel_update_arginfo, 0, 0, 1)
+	ZEND_ARG_INFO(0, data)
+	ZEND_ARG_INFO(0, where)
+	ZEND_ARG_INFO(0, params)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(yod_dbmodel_remove_arginfo, 0, 0, 0)
 	ZEND_ARG_INFO(0, where)
 	ZEND_ARG_INFO(0, params)
@@ -1121,6 +1127,68 @@ static int yod_dbmodel_save(yod_dbmodel_t *object, zval *data, char *where, uint
 }
 /* }}} */
 
+/** {{{ int yod_dbmodel_update(yod_dbmodel_t *object, zval *data, char *where, uint where_len, zval *params, zval *retval TSRMLS_DC)
+*/
+static int yod_dbmodel_update(yod_dbmodel_t *object, zval *data, char *where, uint where_len, zval *params, zval *retval TSRMLS_DC) {
+	yod_database_t *yoddb;
+	zval *table, *params1, *query, **ppval;
+
+#if PHP_YOD_DEBUG
+	yod_debugl(1 TSRMLS_CC);
+	yod_debugf("yod_dbmodel_update()");
+#endif
+
+	if (!data || Z_TYPE_P(data) != IS_ARRAY|| !object) {
+		if (retval) {
+			ZVAL_BOOL(retval, 0);
+		}
+		return 0;
+	}
+
+	yoddb = zend_read_property(Z_OBJCE_P(object), object, ZEND_STRL("_db"), 1 TSRMLS_CC);
+	if (!yoddb || Z_TYPE_P(yoddb) != IS_OBJECT) {
+		if (retval) {
+			ZVAL_BOOL(retval, 0);
+		}
+		yod_dbmodel_initquery(object, NULL TSRMLS_CC);
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Call to a member function insert() on a non-object");
+		return 0;
+	}
+
+	table = zend_read_property(Z_OBJCE_P(object), object, ZEND_STRL("_table"), 1 TSRMLS_CC);
+	if (!table || Z_TYPE_P(table) != IS_STRING || Z_STRLEN_P(table) == 0) {
+		if (retval) {
+			ZVAL_BOOL(retval, 0);
+		}
+		yod_dbmodel_initquery(object, NULL TSRMLS_CC);
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "You have an error in your SQL syntax: table name is empty");
+		return 0;
+	}
+
+	yod_dbmodel_where(object, where, where_len, params, NULL, 0 TSRMLS_CC);
+	query = zend_read_property(Z_OBJCE_P(object), object, ZEND_STRL("_query"), 1 TSRMLS_CC);
+	if (Z_TYPE_P(query) == IS_ARRAY) {
+		if (zend_hash_find(Z_ARRVAL_P(query), ZEND_STRS("WHERE"), (void **)&ppval) == FAILURE) {
+			yod_dbmodel_initquery(object, NULL TSRMLS_CC);
+			return 0;
+		}
+
+		params1 = zend_read_property(Z_OBJCE_P(object), object, ZEND_STRL("_params"), 1 TSRMLS_CC);
+		if (!ppval || Z_TYPE_PP(ppval) != IS_STRING || Z_STRLEN_PP(ppval) == 0) {
+			yod_database_update(yoddb, data, Z_STRVAL_P(table), Z_STRLEN_P(table), NULL, 0, params1, retval TSRMLS_CC);
+		} else {
+			yod_database_update(yoddb, data, Z_STRVAL_P(table), Z_STRLEN_P(table), Z_STRVAL_PP(ppval), Z_STRLEN_PP(ppval), params1, retval TSRMLS_CC);
+		}
+
+		yod_dbmodel_initquery(object, NULL TSRMLS_CC);
+		return 1;
+	}
+
+	yod_dbmodel_initquery(object, NULL TSRMLS_CC);
+	return 0;
+}
+/* }}} */
+
 /** {{{ int yod_dbmodel_remove(yod_dbmodel_t *object, char *where, uint where_len, zval *params, zval *retval TSRMLS_DC)
 */
 static int yod_dbmodel_remove(yod_dbmodel_t *object, char *where, uint where_len, zval *params, zval *retval TSRMLS_DC) {
@@ -1322,6 +1390,21 @@ PHP_METHOD(yod_dbmodel, save) {
 	}
 
 	yod_dbmodel_save(getThis(), data, where, where_len, params, return_value TSRMLS_CC);
+}
+/* }}} */
+
+/** {{{ proto public Yod_DbModel::update($data, $where = '', $params = array())
+*/
+PHP_METHOD(yod_dbmodel, update) {
+	zval *data = NULL, *params = NULL;
+	char *where = NULL;
+	uint where_len = 0;
+
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z|sz!", &data, &where, &where_len, &params) == FAILURE) {
+		return;
+	}
+
+	yod_dbmodel_update(getThis(), data, where, where_len, params, return_value TSRMLS_CC);
 }
 /* }}} */
 
@@ -1586,6 +1669,7 @@ zend_function_entry yod_dbmodel_methods[] = {
 	PHP_ME(yod_dbmodel, select,			yod_dbmodel_select_arginfo,			ZEND_ACC_PUBLIC)
 	PHP_ME(yod_dbmodel, count,			yod_dbmodel_count_arginfo,			ZEND_ACC_PUBLIC)
 	PHP_ME(yod_dbmodel, save,			yod_dbmodel_save_arginfo,			ZEND_ACC_PUBLIC)
+	PHP_ME(yod_dbmodel, update,			yod_dbmodel_update_arginfo,			ZEND_ACC_PUBLIC)
 	PHP_ME(yod_dbmodel, remove,			yod_dbmodel_remove_arginfo,			ZEND_ACC_PUBLIC)
 	PHP_ME(yod_dbmodel, field,			yod_dbmodel_field_arginfo,			ZEND_ACC_PUBLIC)
 	PHP_ME(yod_dbmodel, from,			yod_dbmodel_from_arginfo,			ZEND_ACC_PUBLIC)

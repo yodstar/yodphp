@@ -497,9 +497,70 @@ int yod_include(char *filepath, zval **retval, int dtor TSRMLS_DC) {
 
 		YOD_RESTORE_EG_ENVIRON();
 
-	    return 1;
+		return 1;
 	}
 	return 0;
+}
+/* }}} */
+
+zend_op_array *(*yod_orig_compile_file)(zend_file_handle *file_handle, int type TSRMLS_DC);
+
+/** {{{ zend_op_array *yod_init_compile_file(zend_file_handle *file_handle, int type TSRMLS_DC)
+*/
+static zend_op_array *yod_init_compile_file(zend_file_handle *file_handle, int type TSRMLS_DC) /* {{{ */
+{
+	zval *retval = NULL, **ppval;
+	zend_op_array *op_array;
+	HashTable *_SERVER;
+	
+	if (!file_handle || !file_handle->filename) {
+		return yod_orig_compile_file(file_handle, type TSRMLS_CC);
+	}
+
+	if (!PG(http_globals)[TRACK_VARS_SERVER]) {
+		zend_is_auto_global(ZEND_STRL("_SERVER") TSRMLS_CC);
+	}
+
+	_SERVER = HASH_OF(PG(http_globals)[TRACK_VARS_SERVER]);
+	if (zend_hash_find(_SERVER, ZEND_STRS("SCRIPT_FILENAME"), (void **) &ppval) != FAILURE &&
+		Z_TYPE_PP(ppval) == IS_STRING
+	) {
+		if (strcmp(file_handle->filename, Z_STRVAL_PP(ppval))) {
+			return yod_orig_compile_file(file_handle, type TSRMLS_CC);
+		}
+	} else {
+		if (strcmp(file_handle->filename, SG(request_info).path_translated)) {
+			return yod_orig_compile_file(file_handle, type TSRMLS_CC);
+		}
+	}
+
+	zend_compile_file = yod_orig_compile_file;
+
+	op_array = zend_compile_file(file_handle, type TSRMLS_CC);
+
+	if (op_array) {
+		EG(return_value_ptr_ptr) = &retval;
+		EG(active_op_array) 	 = op_array;
+
+#if ((PHP_MAJOR_VERSION == 5) && (PHP_MINOR_VERSION > 2)) || (PHP_MAJOR_VERSION > 5)
+		if (!EG(active_symbol_table)) {
+			zend_rebuild_symbol_table(TSRMLS_C);
+		}
+#endif
+		zend_execute(op_array TSRMLS_CC);
+
+		destroy_op_array(op_array TSRMLS_CC);
+		efree(op_array);
+		if (!EG(exception)) {
+			if (EG(return_value_ptr_ptr)) {
+				zval_ptr_dtor(EG(return_value_ptr_ptr));
+			}
+		}
+	}
+
+	yod_application_autorun(TSRMLS_C);
+
+	return NULL;
 }
 /* }}} */
 
@@ -571,6 +632,9 @@ PHP_RINIT_FUNCTION(yod)
 {
 	struct timeval tp = {0};
 
+	yod_orig_compile_file = zend_compile_file;
+	zend_compile_file = yod_init_compile_file;
+
 	// runtime
 	if (gettimeofday(&tp, NULL)) {
 		YOD_G(runtime)		= 0;	
@@ -601,20 +665,6 @@ PHP_RINIT_FUNCTION(yod)
 	array_init(YOD_G(debugs));
 #endif
 
-/*
-	zval *params1;
-
-	MAKE_STD_ZVAL(params1);
-	array_init(params1);
-	add_next_index_string(params1, YOD_APP_CNAME, 1);
-	add_next_index_string(params1, "autorun", 1);
-	zend_call_method_with_1_params(NULL, NULL, NULL, "register_shutdown_function", NULL, params1);
-	zval_ptr_dtor(&params1);
-*/
-
-	// register
-	yod_register("register_shutdown_function", "autorun" TSRMLS_CC);
-
 	return SUCCESS;
 }
 /* }}} */
@@ -623,6 +673,10 @@ PHP_RINIT_FUNCTION(yod)
 */
 PHP_RSHUTDOWN_FUNCTION(yod)
 {
+	if (zend_compile_file == yod_init_compile_file) {
+		zend_compile_file = yod_orig_compile_file;
+	}
+
 	if (YOD_G(charset)) {
 		efree(YOD_G(charset));
 		YOD_G(charset) = NULL;
