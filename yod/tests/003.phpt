@@ -78,6 +78,7 @@ TestsController Object
         (
             [_routed:protected] => 1
             [_dispatched:protected] => 1
+            [uri] => tests/request
             [controller] => Tests
             [action] => request
             [params] => Array

@@ -1,16 +1,16 @@
 /*
   +----------------------------------------------------------------------+
-  | Yod Framework as PHP extension										 |
+  | Yod Framework as PHP extension                                       |
   +----------------------------------------------------------------------+
-  | This source file is subject to version 3.01 of the PHP license,		 |
-  | that is bundled with this package in the file LICENSE, and is		 |
-  | available through the world-wide-web at the following url:			 |
-  | http://www.php.net/license/3_01.txt									 |
-  | If you did not receive a copy of the PHP license and are unable to	 |
-  | obtain it through the world-wide-web, please send a note to			 |
-  | license@php.net so we can mail you a copy immediately.				 |
+  | This source file is subject to version 3.01 of the PHP license,      |
+  | that is bundled with this package in the file LICENSE, and is        |
+  | available through the world-wide-web at the following url:           |
+  | http://www.php.net/license/3_01.txt                                  |
+  | If you did not receive a copy of the PHP license and are unable to   |
+  | obtain it through the world-wide-web, please send a note to          |
+  | license@php.net so we can mail you a copy immediately.               |
   +----------------------------------------------------------------------+
-  | Author: Baoqiang Su  <zmrnet@qq.com>								 |
+  | Author: Baoqiang Su  <zmrnet@qq.com>                                 |
   +----------------------------------------------------------------------+
 */
 
@@ -92,6 +92,11 @@ ZEND_BEGIN_ARG_INFO_EX(yod_model_config_arginfo, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(yod_model_import_arginfo, 0, 0, 1)
+	ZEND_ARG_INFO(0, alias)
+	ZEND_ARG_INFO(0, classext)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(yod_model_plugin_arginfo, 0, 0, 1)
 	ZEND_ARG_INFO(0, alias)
 	ZEND_ARG_INFO(0, classext)
 ZEND_END_ARG_INFO()
@@ -589,9 +594,10 @@ PHP_METHOD(yod_model, save) {
 PHP_METHOD(yod_model, update) {
 	yod_database_t *yoddb;
 	yod_model_t *object;
-	zval *table, *data = NULL, *params = NULL;
-	char *where = NULL;
+	zval *table, *data = NULL, *params = NULL, *params1, **data1;
+	char *where = NULL, *where1, *where2;
 	uint where_len = 0;
+	HashPosition pos;
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z|sz!", &data, &where, &where_len, &params) == FAILURE) {
 		return;
@@ -617,7 +623,52 @@ PHP_METHOD(yod_model, update) {
 	table = zend_read_property(Z_OBJCE_P(object), object, ZEND_STRL("_table"), 1 TSRMLS_CC);
 	if (table) {
 		convert_to_string(table);
-		yod_database_update(yoddb, data, Z_STRVAL_P(table), Z_STRLEN_P(table), where, where_len, params, return_value TSRMLS_CC);
+
+		if (where) {
+			where1 = estrndup(where, where_len);
+		} else {
+			where1 = estrndup("", 0);
+		}
+
+		MAKE_STD_ZVAL(params1);
+		if (params && Z_TYPE_P(params) == IS_ARRAY) {
+			ZVAL_ZVAL(params1, params, 1, 0);
+		} else {
+			array_init(params1);
+		}
+		zend_hash_internal_pointer_reset_ex(Z_ARRVAL_P(data), &pos);
+		while (zend_hash_get_current_data_ex(Z_ARRVAL_P(data), (void **)&data1, &pos) == SUCCESS) {
+			char *str_key = NULL;
+			uint key_len;
+			zval *value = NULL;
+			ulong num_key;
+
+			if (zend_hash_get_current_key_ex(Z_ARRVAL_P(data), &str_key, &key_len, &num_key, 0, &pos) == HASH_KEY_IS_STRING) {
+				if (strncmp(str_key, ":", 1) == 0) {
+					if (where_len) {
+						where_len = spprintf(&where2, 0, "%s AND %s = %s", where1, str_key + 1, str_key);
+					} else {
+						where_len = spprintf(&where2, 0, "%s = %s", str_key + 1, str_key);
+					}
+					efree(where1);
+					where1 = where2;
+
+					MAKE_STD_ZVAL(value);
+					ZVAL_ZVAL(value, *data1, 1, 0);
+					convert_to_string(value);
+					add_assoc_zval_ex(params1, str_key, key_len, value);
+
+					zend_hash_move_forward_ex(Z_ARRVAL_P(data), &pos);
+					zend_hash_del_key_or_index(Z_ARRVAL_P(data), str_key, key_len, 0, HASH_DEL_KEY);
+					continue;
+				}
+			}
+			zend_hash_move_forward_ex(Z_ARRVAL_P(data), &pos);
+		}
+		
+		yod_database_update(yoddb, data, Z_STRVAL_P(table), Z_STRLEN_P(table), where1, where_len, params1, return_value TSRMLS_CC);
+		zval_ptr_dtor(&params1);
+		efree(where1);
 		return;
 	}
 
@@ -698,6 +749,10 @@ PHP_METHOD(yod_model, config) {
 		return;
 	}
 
+#if PHP_YOD_DEBUG
+	yod_debugf("yod_model_config(%s)", name ? name : "");
+#endif
+
 	yod_application_config(name, name_len, return_value TSRMLS_CC);
 }
 /* }}} */
@@ -712,10 +767,32 @@ PHP_METHOD(yod_model, import) {
 		return;
 	}
 
+#if PHP_YOD_DEBUG
+	yod_debugf("yod_model_import(%s)", alias ? alias : "");
+#endif
+
 	if (yod_application_import(alias, alias_len, classext, classext_len TSRMLS_CC)) {
 		RETURN_TRUE;
 	}
 	RETURN_FALSE;
+}
+/* }}} */
+
+/** {{{ proto public Yod_Model::plugin($alias, $classext = '.class.php')
+*/
+PHP_METHOD(yod_model, plugin) {
+	char *alias = NULL, *classext = NULL;
+	uint alias_len = 0, classext_len = 0;
+
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|s", &alias, &alias_len, &classext, &classext_len) == FAILURE) {
+		return;
+	}
+
+#if PHP_YOD_DEBUG
+	yod_debugf("yod_model_plugin(%s)", alias ? alias : "");
+#endif
+
+	yod_application_plugin(alias, alias_len, classext, classext_len, return_value TSRMLS_CC);
 }
 /* }}} */
 
@@ -785,6 +862,7 @@ zend_function_entry yod_model_methods[] = {
 	PHP_ME(yod_model, lastQuery,		yod_model_lastquery_arginfo,	ZEND_ACC_PUBLIC)
 	PHP_ME(yod_model, config,			yod_model_config_arginfo,		ZEND_ACC_PROTECTED)
 	PHP_ME(yod_model, import,			yod_model_import_arginfo,		ZEND_ACC_PROTECTED)
+	PHP_ME(yod_model, plugin,			yod_model_plugin_arginfo,		ZEND_ACC_PROTECTED)
 	PHP_ME(yod_model, model,			yod_model_model_arginfo,		ZEND_ACC_PROTECTED)
 	PHP_ME(yod_model, dbmodel,			yod_model_dbmodel_arginfo,		ZEND_ACC_PROTECTED)
 	PHP_ME(yod_model, __destruct,		NULL,		ZEND_ACC_PUBLIC|ZEND_ACC_DTOR)

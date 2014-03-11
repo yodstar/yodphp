@@ -10,6 +10,7 @@ date_default_timezone_set('Asia/Shanghai');
 defined('YOD_RUNMODE') or define('YOD_RUNMODE', 0);
 
 $yodapp = new Yod_Application();
+$yodapp->run();
 
 class IndexController extends Yod_Controller
 {

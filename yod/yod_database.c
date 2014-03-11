@@ -1,16 +1,16 @@
 /*
   +----------------------------------------------------------------------+
-  | Yod Framework as PHP extension										 |
+  | Yod Framework as PHP extension                                       |
   +----------------------------------------------------------------------+
-  | This source file is subject to version 3.01 of the PHP license,		 |
-  | that is bundled with this package in the file LICENSE, and is		 |
-  | available through the world-wide-web at the following url:			 |
-  | http://www.php.net/license/3_01.txt									 |
-  | If you did not receive a copy of the PHP license and are unable to	 |
-  | obtain it through the world-wide-web, please send a note to			 |
-  | license@php.net so we can mail you a copy immediately.				 |
+  | This source file is subject to version 3.01 of the PHP license,      |
+  | that is bundled with this package in the file LICENSE, and is        |
+  | available through the world-wide-web at the following url:           |
+  | http://www.php.net/license/3_01.txt                                  |
+  | If you did not receive a copy of the PHP license and are unable to   |
+  | obtain it through the world-wide-web, please send a note to          |
+  | license@php.net so we can mail you a copy immediately.               |
   +----------------------------------------------------------------------+
-  | Author: Baoqiang Su  <zmrnet@qq.com>								 |
+  | Author: Baoqiang Su  <zmrnet@qq.com>                                 |
   +----------------------------------------------------------------------+
 */
 
@@ -181,12 +181,12 @@ char *yod_database_md5hash(zval **data TSRMLS_DC) {
 	unsigned char digest[16];
 	char *retval, md5str[33];
 
-	// serialize
+	/* serialize */
 	PHP_VAR_SERIALIZE_INIT(var_hash);
 	php_var_serialize(&buf, data, &var_hash TSRMLS_CC);
 	PHP_VAR_SERIALIZE_DESTROY(var_hash);
 
-	// md5hash
+	/* md5hash */
 	md5str[0] = '\0';
 	PHP_MD5Init(&context);
 	PHP_MD5Update(&context, buf.c, buf.len);
@@ -194,10 +194,6 @@ char *yod_database_md5hash(zval **data TSRMLS_DC) {
 	make_digest(md5str, digest);
 	retval = estrndup(md5str, 32);
 	smart_str_free(&buf);
-
-#if PHP_YOD_DEBUG
-	yod_debugf("yod_database_md5hash():%s", retval);
-#endif
 
 	return retval;
 }
@@ -217,7 +213,7 @@ void yod_database_construct(yod_database_t *object, zval *config TSRMLS_DC) {
 		object_init_ex(object, yod_database_ce);
 	}
 
-	// linkids
+	/* linkids */
 	MAKE_STD_ZVAL(linkids);
 	array_init(linkids);
 	zend_update_property(Z_OBJCE_P(object), object, ZEND_STRL("_linkids"), linkids TSRMLS_CC);
@@ -225,7 +221,7 @@ void yod_database_construct(yod_database_t *object, zval *config TSRMLS_DC) {
 
 	if (config && Z_TYPE_P(config) == IS_ARRAY) {
 		zend_update_property(Z_OBJCE_P(object), object, ZEND_STRL("_config"), config TSRMLS_CC);
-		// prefix
+		/* prefix */
 		if (zend_hash_find(Z_ARRVAL_P(config), ZEND_STRS("prefix"), (void **)&ppval) == SUCCESS &&
 			Z_TYPE_PP(ppval) == IS_STRING
 		) {
@@ -239,7 +235,7 @@ void yod_database_construct(yod_database_t *object, zval *config TSRMLS_DC) {
 */
 int yod_database_getinstance(zval *config, yod_database_t *retval TSRMLS_DC) {
 	yod_database_t *object;
-	zval *p_db, *p_db1, *config1, *pzval, **ppval;
+	zval *p_db, *p_db1, *config1, **ppval;
 	char *classname, *classpath, *md5key;
 	uint classname_len;
 	zend_class_entry **pce = NULL;
@@ -309,7 +305,7 @@ int yod_database_getinstance(zval *config, yod_database_t *retval TSRMLS_DC) {
 #endif
 		spprintf(&classpath, 0, "%s/drivers/%s.class.php", yod_extpath(TSRMLS_C), classname + 4);
 		if (VCWD_ACCESS(classpath, F_OK) == 0) {
-			yod_include(classpath, &pzval, 1 TSRMLS_CC);
+			yod_include(classpath, NULL, 1 TSRMLS_CC);
 		}
 		efree(classpath);
 	}
@@ -550,7 +546,7 @@ int yod_database_create(yod_database_t *object, zval *fields, char *table, uint 
 /** {{{ int yod_database_insert(yod_database_t *object, zval *data, char *table, uint table_len, int replace, zval *retval TSRMLS_DC)
 */
 int yod_database_insert(yod_database_t *object, zval *data, char *table, uint table_len, int replace, zval* retval TSRMLS_DC) {
-	zval *prefix, *query, *params1, *affected, **data1;
+	zval *prefix, *query, *params1, *affected, *pzval, **data1;
 	char *squery, *fields = NULL, *values = NULL, *fields1, *values1;
 	uint squery_len, fields_len = 0, values_len = 0;
 	HashPosition pos;
@@ -641,7 +637,14 @@ int yod_database_insert(yod_database_t *object, zval *data, char *table, uint ta
 #endif
 		MAKE_STD_ZVAL(affected);
 		ZVAL_BOOL(affected, 1);
-		yod_call_method(object, ZEND_STRL("execute"), &retval, 3, query, params1, affected, NULL TSRMLS_CC);
+		yod_call_method_with_3_params(&object, Z_OBJCE_P(object), NULL, "execute", &pzval, query, params1, affected);
+		if (retval) {
+			if (pzval) {
+				ZVAL_ZVAL(retval, pzval, 1, 1);
+			} else {
+				ZVAL_BOOL(retval, 0);
+			}	
+		}
 	}
 	zval_ptr_dtor(&params1);
 	zval_ptr_dtor(&query);
@@ -654,7 +657,7 @@ int yod_database_insert(yod_database_t *object, zval *data, char *table, uint ta
 /** {{{ int yod_database_update(yod_database_t *object, zval *data, char *table, uint table_len, char *where, uint where_len, zval *params, zval *retval TSRMLS_DC)
 */
 int yod_database_update(yod_database_t *object, zval *data, char *table, uint table_len, char *where, uint where_len, zval *params, zval *retval TSRMLS_DC) {
-	zval *prefix, *query, *affected, *params1, **data1;
+	zval *prefix, *query, *affected, *params1, *pzval, **data1;
 	char *squery, *update = NULL, *update1;
 	uint squery_len, update_len = 0;
 	HashPosition pos;
@@ -735,7 +738,14 @@ int yod_database_update(yod_database_t *object, zval *data, char *table, uint ta
 #endif
 		MAKE_STD_ZVAL(affected);
 		ZVAL_BOOL(affected, 1);
-		yod_call_method(object, ZEND_STRL("execute"), &retval, 3, query, params1, affected, NULL TSRMLS_CC);
+		yod_call_method_with_3_params(&object, Z_OBJCE_P(object), NULL, "execute", &pzval, query, params1, affected);
+		if (retval) {
+			if (pzval) {
+				ZVAL_ZVAL(retval, pzval, 1, 1);
+			} else {
+				ZVAL_BOOL(retval, 0);
+			}	
+		}
 	}
 	zval_ptr_dtor(&params1);
 	zval_ptr_dtor(&query);
@@ -748,7 +758,7 @@ int yod_database_update(yod_database_t *object, zval *data, char *table, uint ta
 /** {{{ int yod_database_delete(yod_database_t *object, char *table, uint table_len, char *where, uint where_len, zval *params, zval *retval TSRMLS_DC)
 */
 int yod_database_delete(yod_database_t *object, char *table, uint table_len, char *where, uint where_len, zval *params, zval *retval TSRMLS_DC) {
-	zval *prefix, *query, *affected;
+	zval *prefix, *query, *affected, *pzval;
 	char *squery;
 	uint squery_len;
 
@@ -784,8 +794,15 @@ int yod_database_delete(yod_database_t *object, char *table, uint table_len, cha
 #endif
 		MAKE_STD_ZVAL(affected);
 		ZVAL_BOOL(affected, 1);
-		yod_call_method(object, ZEND_STRL("execute"), &retval, 3, query, params, affected, NULL TSRMLS_CC);
+		yod_call_method_with_3_params(&object, Z_OBJCE_P(object), NULL, "execute", &pzval, query, params, affected);
 		zval_ptr_dtor(&affected);
+		if (retval) {
+			if (pzval) {
+				ZVAL_ZVAL(retval, pzval, 1, 1);
+			} else {
+				ZVAL_BOOL(retval, 0);
+			}	
+		}
 	}
 	zval_ptr_dtor(&query);
 	efree(squery);
@@ -1129,7 +1146,7 @@ zend_function_entry yod_database_methods[] = {
 	ZEND_ABSTRACT_ME(yod_database, transaction,	yod_database_transaction_arginfo)
 	ZEND_ABSTRACT_ME(yod_database, commit,		yod_database_commit_arginfo)
 	ZEND_ABSTRACT_ME(yod_database, rollback,	yod_database_rollback_arginfo)
-	ZEND_ABSTRACT_ME(yod_database, insertid,	yod_database_insertid_arginfo)
+	ZEND_ABSTRACT_ME(yod_database, insertId,	yod_database_insertid_arginfo)
 	ZEND_ABSTRACT_ME(yod_database, quote,		yod_database_quote_arginfo)
 	ZEND_ABSTRACT_ME(yod_database, free,		yod_database_free_arginfo)
 	ZEND_ABSTRACT_ME(yod_database, close,		yod_database_close_arginfo)

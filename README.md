@@ -82,7 +82,7 @@ index.php is the application entry
 error_reporting(E_ALL);
 date_default_timezone_set('Asia/Shanghai');
 
-define('YOD_RUNPATH', dirname(__FILE__) . '/app');
+defined('YOD_RUNPATH') or define('YOD_RUNPATH', dirname(__FILE__) . '/app');
 
 ```
 
@@ -95,13 +95,13 @@ hello.php is the application hello entry
 error_reporting(E_ALL);
 date_default_timezone_set('Asia/Shanghai');
 
-define('YOD_RUNPATH', dirname(__FILE__) . '/app');
+defined('YOD_RUNPATH') or define('YOD_RUNPATH', dirname(__FILE__) . '/app');
 
 class HelloController extends Yod_Controller
 {
 	public function indexAction()
 	{
-		$this->assign('content', 'Hello World');
+		$this->assign('content', $this->model('Hello')->content());
 		$this->display('/index/index');
 	}
 
@@ -110,6 +110,14 @@ class HelloController extends Yod_Controller
 		echo '<pre>';
 		print_r($this);
 	}
+}
+
+class HelloModel extends Yod_Model
+{
+    public function content()
+    {
+        return 'Hello World!';
+    }
 }
 
 ```
@@ -143,6 +151,16 @@ return array(
 	// tpl_data
 	'tpl_data' => array(
 		'_PUBLIC_' => '/public/'
+	),
+	// url_rules (v1.3.1+)
+	'url_rules' => array(
+		'en/*' => '*',
+		'zh/*' => array('*', array('lang' => 'zh')),
+		'rule1' => 'index/rule1/p/v',
+		'index/rule1' => 'index/rule1/id/1',
+		'index/rule2/:id' => 'index/rule2',
+		'index/rule3/:id/edit' => 'index/rule3/action/edit',
+		'index/rule4/:id/remove' => array('index/rule4', array('action' => 'remove'),
 	),
 );
 

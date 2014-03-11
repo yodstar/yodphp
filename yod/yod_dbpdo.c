@@ -1,16 +1,16 @@
 /*
   +----------------------------------------------------------------------+
-  | Yod Framework as PHP extension										 |
+  | Yod Framework as PHP extension                                       |
   +----------------------------------------------------------------------+
-  | This source file is subject to version 3.01 of the PHP license,		 |
-  | that is bundled with this package in the file LICENSE, and is		 |
-  | available through the world-wide-web at the following url:			 |
-  | http://www.php.net/license/3_01.txt									 |
-  | If you did not receive a copy of the PHP license and are unable to	 |
-  | obtain it through the world-wide-web, please send a note to			 |
-  | license@php.net so we can mail you a copy immediately.				 |
+  | This source file is subject to version 3.01 of the PHP license,      |
+  | that is bundled with this package in the file LICENSE, and is        |
+  | available through the world-wide-web at the following url:           |
+  | http://www.php.net/license/3_01.txt                                  |
+  | If you did not receive a copy of the PHP license and are unable to   |
+  | obtain it through the world-wide-web, please send a note to          |
+  | license@php.net so we can mail you a copy immediately.               |
   +----------------------------------------------------------------------+
-  | Author: Baoqiang Su  <zmrnet@qq.com>								 |
+  | Author: Baoqiang Su  <zmrnet@qq.com>                                 |
   +----------------------------------------------------------------------+
 */
 
@@ -202,11 +202,11 @@ static int yod_dbpdo_connect(yod_dbpdo_t *object, zval *config, long linknum, zv
 	}
 
 	if (Z_TYPE_P(dbconfig) == IS_ARRAY) {
-		// db_dsn.pdsn
+		/* db_dsn.pdsn */
 		if (zend_hash_find(Z_ARRVAL_P(dbconfig), ZEND_STRS("pdsn"), (void **)&ppval) == FAILURE ||
 			Z_TYPE_PP(ppval) != IS_STRING || Z_STRLEN_PP(ppval) == 0
 		) {
-			// db_dsn.dsn
+			/* db_dsn.dsn */
 			if (zend_hash_find(Z_ARRVAL_P(dbconfig), ZEND_STRS("dsn"), (void **)&ppval) == FAILURE ||
 				Z_TYPE_PP(ppval) != IS_STRING || Z_STRLEN_PP(ppval) == 0
 			) {
@@ -227,16 +227,16 @@ static int yod_dbpdo_connect(yod_dbpdo_t *object, zval *config, long linknum, zv
 			MAKE_STD_ZVAL(linkid);
 			object_init_ex(linkid, *pce);
 
-			// argv
+			/* argv */
 			MAKE_STD_ZVAL(argv[0]);
 			MAKE_STD_ZVAL(argv[1]);
 			MAKE_STD_ZVAL(argv[2]);
 			MAKE_STD_ZVAL(argv[3]);
 
-			// argv.pdsn
+			/* argv.pdsn */
 			ZVAL_STRINGL(argv[0] , Z_STRVAL_PP(ppval), Z_STRLEN_PP(ppval), 1);
 
-			// argv.user
+			/* argv.user */
 			if (zend_hash_find(Z_ARRVAL_P(dbconfig), ZEND_STRS("user"), (void **)&ppval) == SUCCESS &&
 				Z_TYPE_PP(ppval) == IS_STRING
 			) {
@@ -245,7 +245,7 @@ static int yod_dbpdo_connect(yod_dbpdo_t *object, zval *config, long linknum, zv
 				ZVAL_NULL(argv[1]);
 			}
 
-			// argv.pass
+			/* argv.pass */
 			if (zend_hash_find(Z_ARRVAL_P(dbconfig), ZEND_STRS("pass"), (void **)&ppval) == SUCCESS &&
 				Z_TYPE_PP(ppval) == IS_STRING
 			) {
@@ -254,7 +254,7 @@ static int yod_dbpdo_connect(yod_dbpdo_t *object, zval *config, long linknum, zv
 				ZVAL_NULL(argv[2]);
 			}
 
-			// argv.options
+			/* argv.options */
 			if (zend_hash_find(Z_ARRVAL_P(dbconfig), ZEND_STRS("options"), (void **)&ppval) == SUCCESS &&
 				Z_TYPE_PP(ppval) == IS_ARRAY
 			) {
@@ -263,7 +263,7 @@ static int yod_dbpdo_connect(yod_dbpdo_t *object, zval *config, long linknum, zv
 				array_init(argv[3]);
 			}
 
-			// pconnect
+			/* pconnect */
 			if (zend_hash_find(Z_ARRVAL_P(dbconfig), ZEND_STRS("pconnect"), (void **)&ppval) == SUCCESS &&
 				Z_TYPE_PP(ppval) == IS_BOOL && Z_BVAL_PP(ppval)
 			) {
@@ -278,16 +278,16 @@ static int yod_dbpdo_connect(yod_dbpdo_t *object, zval *config, long linknum, zv
 				}
 			}
 
-			yod_call_method(linkid, ZEND_STRL(ZEND_CONSTRUCTOR_FUNC_NAME), NULL, 4, argv[0], argv[1], argv[2], argv[3] TSRMLS_CC);
+			yod_call_method_with_4_params(&linkid, Z_OBJCE_P(linkid), NULL, ZEND_CONSTRUCTOR_FUNC_NAME, NULL, argv[0], argv[1], argv[2], argv[3]);
 
 			zval_ptr_dtor(&argv[0]);
 			zval_ptr_dtor(&argv[1]);
 			zval_ptr_dtor(&argv[2]);
 			zval_ptr_dtor(&argv[3]);
 			
-			// charset
+			/* charset */
 			if (zend_hash_find(Z_ARRVAL_P(dbconfig), ZEND_STRS("charset"), (void **)&ppval) == SUCCESS &&
-				Z_TYPE_PP(ppval) == IS_STRING || Z_STRLEN_PP(ppval)
+				Z_TYPE_PP(ppval) == IS_STRING && Z_STRLEN_PP(ppval)
 			) {
 				squery_len = spprintf(&squery, 0, "SET NAMES %s", Z_STRVAL_PP(ppval));
 			} else {
@@ -300,7 +300,7 @@ static int yod_dbpdo_connect(yod_dbpdo_t *object, zval *config, long linknum, zv
 			zval_ptr_dtor(&query);
 			efree(squery);
 
-			// errmode
+			/* errmode */
 #ifndef ZEND_FETCH_CLASS_SILENT
 			if (!zend_get_constant_ex(ZEND_STRL("PDO::ATTR_ERRMODE"), &errmode, NULL TSRMLS_CC)) {
 #else
@@ -319,7 +319,7 @@ static int yod_dbpdo_connect(yod_dbpdo_t *object, zval *config, long linknum, zv
 			}
 			zend_call_method_with_2_params(&linkid, Z_OBJCE_P(linkid), NULL, "setattribute", NULL, &errmode, &warning);
 
-			// linkid
+			/* linkid */
 			zend_update_property(Z_OBJCE_P(object), object, ZEND_STRL("_linkid"), linkid TSRMLS_CC);
 			MAKE_STD_ZVAL(linkids1);
 			if (linkids && Z_TYPE_P(linkids) == IS_ARRAY) {
@@ -757,14 +757,14 @@ PHP_METHOD(yod_dbpdo, fields) {
 
 		MAKE_STD_ZVAL(field);
 		array_init(field);
-		// name
+		/* name */
 		add_assoc_null_ex(field, ZEND_STRS("name"));
-		// type
+		/* type */
 		if (zend_hash_find(Z_ARRVAL_PP(data1), ZEND_STRS("Type"), (void**)&ppval) == SUCCESS) {
 			zval_add_ref(ppval);
 			add_assoc_zval_ex(field, ZEND_STRS("type"), *ppval);
 		}
-		// notnull
+		/* notnull */
 		if (zend_hash_find(Z_ARRVAL_PP(data1), ZEND_STRS("Null"), (void**)&ppval) == SUCCESS) {
 			if (Z_TYPE_PP(ppval) == IS_STRING && Z_STRLEN_PP(ppval) == 0) {
 				add_assoc_bool_ex(field, ZEND_STRS("notnull"), 1);
@@ -772,12 +772,12 @@ PHP_METHOD(yod_dbpdo, fields) {
 				add_assoc_bool_ex(field, ZEND_STRS("notnull"), 0);
 			}
 		}
-		// default
+		/* default */
 		if (zend_hash_find(Z_ARRVAL_PP(data1), ZEND_STRS("Default"), (void**)&ppval) == SUCCESS) {
 			zval_add_ref(ppval);
 			add_assoc_zval_ex(field, ZEND_STRS("default"), *ppval);
 		}
-		// primary
+		/* primary */
 		if (zend_hash_find(Z_ARRVAL_PP(data1), ZEND_STRS("Key"), (void**)&ppval) == SUCCESS) {
 			if (Z_TYPE_PP(ppval) == IS_STRING && strcasecmp(Z_STRVAL_PP(ppval), "pri") == 0) {
 				add_assoc_bool_ex(field, ZEND_STRS("primary"), 1);
@@ -785,7 +785,7 @@ PHP_METHOD(yod_dbpdo, fields) {
 				add_assoc_bool_ex(field, ZEND_STRS("primary"), 0);
 			}
 		}
-		// autoinc
+		/* autoinc */
 		if (zend_hash_find(Z_ARRVAL_PP(data1), ZEND_STRS("Extra"), (void**)&ppval) == SUCCESS) {
 			if (Z_TYPE_PP(ppval) == IS_STRING && strcasecmp(Z_STRVAL_PP(ppval), "auto_increment") == 0) {
 				add_assoc_bool_ex(field, ZEND_STRS("autoinc"), 1);
@@ -958,9 +958,9 @@ PHP_METHOD(yod_dbpdo, rollback) {
 }
 /* }}} */
 
-/** {{{ proto public Yod_DbPdo::insertid()
+/** {{{ proto public Yod_DbPdo::insertId()
 */
-PHP_METHOD(yod_dbpdo, insertid) {
+PHP_METHOD(yod_dbpdo, insertId) {
 	yod_dbpdo_t *object;
 	zval *linkid, *retval;
 
@@ -1138,7 +1138,7 @@ zend_function_entry yod_dbpdo_methods[] = {
 	PHP_ME(yod_dbpdo, transaction,	yod_dbpdo_transaction_arginfo,		ZEND_ACC_PUBLIC)
 	PHP_ME(yod_dbpdo, commit,		yod_dbpdo_commit_arginfo,			ZEND_ACC_PUBLIC)
 	PHP_ME(yod_dbpdo, rollback,		yod_dbpdo_rollback_arginfo,			ZEND_ACC_PUBLIC)
-	PHP_ME(yod_dbpdo, insertid,		yod_dbpdo_insertid_arginfo,			ZEND_ACC_PUBLIC)
+	PHP_ME(yod_dbpdo, insertId,		yod_dbpdo_insertid_arginfo,			ZEND_ACC_PUBLIC)
 	PHP_ME(yod_dbpdo, quote,		yod_dbpdo_quote_arginfo,			ZEND_ACC_PUBLIC)
 	PHP_ME(yod_dbpdo, free,			yod_dbpdo_free_arginfo,				ZEND_ACC_PUBLIC)
 	PHP_ME(yod_dbpdo, close,		yod_dbpdo_close_arginfo,			ZEND_ACC_PUBLIC)

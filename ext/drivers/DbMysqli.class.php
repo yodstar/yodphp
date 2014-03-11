@@ -1,6 +1,6 @@
 <?php
 // +----------------------------------------------------------------------
-// | yodphp [ Yod PHP Framework ]
+// | yodphp [ Yod Framework for PHP ]
 // +----------------------------------------------------------------------
 // | Copyright (c) 2013 http://yodphp.com All rights reserved.
 // +----------------------------------------------------------------------
@@ -340,11 +340,11 @@ class Yod_DbMysqli extends Yod_Database
 	}
 
 	/**
-	 * insertid
+	 * insertId
 	 * @access public
 	 * @return integer
 	 */
-	public function insertid()
+	public function insertId()
 	{
 		return $this->_linkid->insert_id;
 	}

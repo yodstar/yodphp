@@ -1,17 +1,17 @@
 /*
-+----------------------------------------------------------------------+
-| Yod Framework as PHP extension										 |
-+----------------------------------------------------------------------+
-| This source file is subject to version 3.01 of the PHP license,		 |
-| that is bundled with this package in the file LICENSE, and is		 |
-| available through the world-wide-web at the following url:			 |
-| http://www.php.net/license/3_01.txt									 |
-| If you did not receive a copy of the PHP license and are unable to	 |
-| obtain it through the world-wide-web, please send a note to			 |
-| license@php.net so we can mail you a copy immediately.				 |
-+----------------------------------------------------------------------+
-| Author: Baoqiang Su  <zmrnet@qq.com>								 |
-+----------------------------------------------------------------------+
+  +----------------------------------------------------------------------+
+  | Yod Framework as PHP extension                                       |
+  +----------------------------------------------------------------------+
+  | This source file is subject to version 3.01 of the PHP license,      |
+  | that is bundled with this package in the file LICENSE, and is        |
+  | available through the world-wide-web at the following url:           |
+  | http://www.php.net/license/3_01.txt                                  |
+  | If you did not receive a copy of the PHP license and are unable to   |
+  | obtain it through the world-wide-web, please send a note to          |
+  | license@php.net so we can mail you a copy immediately.               |
+  +----------------------------------------------------------------------+
+  | Author: Baoqiang Su  <zmrnet@qq.com>                                 |
+  +----------------------------------------------------------------------+
 */
 
 /* $Id$ */
@@ -58,7 +58,7 @@ PHP_MINIT_FUNCTION(yod_action) {
 	yod_action_ce = zend_register_internal_class_ex(&ce, yod_controller_ce, NULL TSRMLS_CC);
 	yod_action_ce->ce_flags |= ZEND_ACC_IMPLICIT_ABSTRACT_CLASS;
 	
-	return SUCCESS;
+  return SUCCESS;
 }
 /* }}} */
 

@@ -1,16 +1,16 @@
 /*
   +----------------------------------------------------------------------+
-  | Yod Framework as PHP extension										 |
+  | Yod Framework as PHP extension                                       |
   +----------------------------------------------------------------------+
-  | This source file is subject to version 3.01 of the PHP license,		 |
-  | that is bundled with this package in the file LICENSE, and is		 |
-  | available through the world-wide-web at the following url:			 |
-  | http://www.php.net/license/3_01.txt									 |
-  | If you did not receive a copy of the PHP license and are unable to	 |
-  | obtain it through the world-wide-web, please send a note to			 |
-  | license@php.net so we can mail you a copy immediately.				 |
+  | This source file is subject to version 3.01 of the PHP license,      |
+  | that is bundled with this package in the file LICENSE, and is        |
+  | available through the world-wide-web at the following url:           |
+  | http://www.php.net/license/3_01.txt                                  |
+  | If you did not receive a copy of the PHP license and are unable to   |
+  | obtain it through the world-wide-web, please send a note to          |
+  | license@php.net so we can mail you a copy immediately.               |
   +----------------------------------------------------------------------+
-  | Author: Baoqiang Su  <zmrnet@qq.com>								 |
+  | Author: Baoqiang Su  <zmrnet@qq.com>                                 |
   +----------------------------------------------------------------------+
 */
 
@@ -186,7 +186,7 @@ int yod_debugw(char *data, uint data_len TSRMLS_DC) {
 			return 0;
 		}
 	}
-	
+
 	spprintf(&logfile, 0, "%s/debugs.log", logpath);
 	context = php_stream_context_from_zval(zcontext, 0);
 
@@ -250,9 +250,9 @@ void yod_debugs(TSRMLS_D) {
 #endif
 
 	if (SG(request_info).request_method) {
-		php_printf("\n<pre><hr><font color=\"red\">Yod is running in debug mode (%d)</font>\n%s\n", runmode, YOD_DOTLINE);
+		php_printf("\n<pre><hr><font color=\"red\">Yod %s is running in debug mode (%d)</font>\n%s\n", YOD_VERSION, runmode, YOD_DOTLINE);
 	} else {
-		php_printf("\n%s\nYod is running in debug mode (%d)\n%s\n", YOD_DOTLINE, runmode, YOD_DOTLINE);
+		php_printf("\n%s\nYod %s is running in debug mode (%d)\n%s\n", YOD_DOTLINE, YOD_VERSION, runmode, YOD_DOTLINE);
 	}
 
 	zend_hash_internal_pointer_reset(Z_ARRVAL_P(YOD_G(debugs)));
@@ -283,7 +283,6 @@ void yod_debugs(TSRMLS_D) {
 			zval_ptr_dtor(&ob_buffer);
 		}
 
-		// runmode
 		if (runmode & 4) {
 #ifdef PHP_OUTPUT_NEWAPI
 			php_output_end(TSRMLS_C);

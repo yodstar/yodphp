@@ -1,6 +1,6 @@
 <?php
 // +----------------------------------------------------------------------
-// | yodphp [ Yod PHP Framework ]
+// | yodphp [ Yod Framework for PHP ]
 // +----------------------------------------------------------------------
 // | Copyright (c) 2013 http://yodphp.com All rights reserved.
 // +----------------------------------------------------------------------
@@ -9,7 +9,6 @@
 // | Author: Baoqiang Su <zmrnet@qq.com>
 // +----------------------------------------------------------------------
 
-
 /**
  * 导入所需的类库 同java的Import 本函数有缓存功能
  * @param string $class 类库命名空间字符串
@@ -17,7 +16,7 @@
  * @param string $ext 导入的文件扩展名
  * @return boolean
  */
-function import($class, $baseUrl = '', $ext='.class.php') {
+function import($class, $baseUrl='', $ext='.class.php') {
     static $_file = array();
     $class = str_replace(array('.', '#'), array('/', '.'), $class);
     if ('' === $baseUrl && false === strpos($class, '/')) {
@@ -94,4 +93,23 @@ function require_cache($filename) {
         }
     }
     return $_importFiles[$filename];
+}
+
+/**
+ * D函数用于实例化Model
+ * @param string $name Model资源地址
+ * @param string $layer 业务层名称
+ * @return Model
+ */
+function D($name='') {
+    return Yod_Model::getInstance($name);
+}
+
+/**
+ * M函数用于实例化一个没有模型文件的Model
+ * @param string $name Model名称
+ * @return Model
+ */
+function M($name='') {
+    return Yod_DbModel::getInstance($name);
 }

@@ -1,6 +1,6 @@
 <?php
 // +----------------------------------------------------------------------
-// | yodphp [ Yod PHP Framework ]
+// | yodphp [ Yod Framework for PHP ]
 // +----------------------------------------------------------------------
 // | Copyright (c) 2013 http://yodphp.com All rights reserved.
 // +----------------------------------------------------------------------
@@ -22,7 +22,7 @@ abstract class Yod_ViewController extends Yod_Controller
 	 */
 	public function init()
 	{
-		$tpl_view = $this->config('tpl_view');	
+		($tpl_view = $this->config('tplview')) or ($tpl_view = $this->config('tpl_view'));
 
 		if (empty($tpl_view['class'])) {
 			return;

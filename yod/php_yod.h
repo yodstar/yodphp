@@ -1,17 +1,17 @@
 /*
-+----------------------------------------------------------------------+
-| Yod Framework as PHP extension										 |
-+----------------------------------------------------------------------+
-| This source file is subject to version 3.01 of the PHP license,		 |
-| that is bundled with this package in the file LICENSE, and is		 |
-| available through the world-wide-web at the following url:			 |
-| http://www.php.net/license/3_01.txt									 |
-| If you did not receive a copy of the PHP license and are unable to	 |
-| obtain it through the world-wide-web, please send a note to			 |
-| license@php.net so we can mail you a copy immediately.				 |
-+----------------------------------------------------------------------+
-| Author: Baoqiang Su  <zmrnet@qq.com>								 |
-+----------------------------------------------------------------------+
+  +----------------------------------------------------------------------+
+  | Yod Framework as PHP extension                                       |
+  +----------------------------------------------------------------------+
+  | This source file is subject to version 3.01 of the PHP license,      |
+  | that is bundled with this package in the file LICENSE, and is        |
+  | available through the world-wide-web at the following url:           |
+  | http://www.php.net/license/3_01.txt                                  |
+  | If you did not receive a copy of the PHP license and are unable to   |
+  | obtain it through the world-wide-web, please send a note to          |
+  | license@php.net so we can mail you a copy immediately.               |
+  +----------------------------------------------------------------------+
+  | Author: Baoqiang Su  <zmrnet@qq.com>                                 |
+  +----------------------------------------------------------------------+
 */
 
 /* $Id$ */
@@ -51,10 +51,10 @@ extern zend_module_entry yod_module_entry;
 #endif
 
 #if PHP_YOD_DEBUG
-#define YOD_VERSION					"1.3.0-dev"
+#define YOD_VERSION					"1.3.1-dev"
 #define YOD_RUNMODE					7
 #else
-#define YOD_VERSION					"1.3.0"
+#define YOD_VERSION					"1.3.1"
 #define YOD_RUNMODE					3
 #endif
 
@@ -114,6 +114,7 @@ long yod_forward(TSRMLS_D);
 char *yod_charset(TSRMLS_D);
 char *yod_viewext(TSRMLS_D);
 char *yod_pathvar(TSRMLS_D);
+char *yod_runfile(TSRMLS_D);
 char *yod_runpath(TSRMLS_D);
 char *yod_extpath(TSRMLS_D);
 char *yod_logpath(TSRMLS_D);
@@ -122,7 +123,15 @@ void yod_loading(TSRMLS_D);
 int yod_do_exit(long status TSRMLS_DC);
 int yod_register(char *moduel, char *method TSRMLS_DC);
 int yod_include(char *filepath, zval **retval, int dtor TSRMLS_DC);
-int yod_call_method(zval *object, char *func, int func_len, zval **result, int pcount, zval *arg1, zval *arg2, zval *arg3, zval *arg4 TSRMLS_DC);
+
+zval* yod_call_method(zval **object_pp, zend_class_entry *obj_ce, zend_function **fn_proxy, char *function_name, int function_name_len, zval **retval_ptr_ptr, int param_count, zval* arg1, zval* arg2, zval* arg3, zval* arg4 TSRMLS_DC);
+
+#define yod_call_method_with_3_params(obj, obj_ce, fn_proxy, function_name, retval, arg1, arg2, arg3) \
+	yod_call_method(obj, obj_ce, fn_proxy, function_name, sizeof(function_name)-1, retval, 3, arg1, arg2, arg3, NULL TSRMLS_CC)
+
+#define yod_call_method_with_4_params(obj, obj_ce, fn_proxy, function_name, retval, arg1, arg2, arg3, arg4) \
+	yod_call_method(obj, obj_ce, fn_proxy, function_name, sizeof(function_name)-1, retval, 4, arg1, arg2, arg3, arg4 TSRMLS_CC)
+
 
 ZEND_BEGIN_MODULE_GLOBALS(yod)
 	double		runtime;
@@ -134,12 +143,16 @@ ZEND_BEGIN_MODULE_GLOBALS(yod)
 	char		*runpath;
 	char		*extpath;
 	char		*logpath;
+
 	zval		*yodapp;
 	zval		*config;
-	int			exited;
 	int			running;
-	int			loading;
 	zval		*imports;
+	zval		*plugins;
+
+	int			exited;
+	int			loading;
+	char		*runfile;
 
 #if PHP_YOD_DEBUG
 	zval		*debugs;

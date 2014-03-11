@@ -1,17 +1,17 @@
 /*
-+----------------------------------------------------------------------+
-| Yod Framework as PHP extension										 |
-+----------------------------------------------------------------------+
-| This source file is subject to version 3.01 of the PHP license,		 |
-| that is bundled with this package in the file LICENSE, and is		 |
-| available through the world-wide-web at the following url:			 |
-| http://www.php.net/license/3_01.txt									 |
-| If you did not receive a copy of the PHP license and are unable to	 |
-| obtain it through the world-wide-web, please send a note to			 |
-| license@php.net so we can mail you a copy immediately.				 |
-+----------------------------------------------------------------------+
-| Author: Baoqiang Su  <zmrnet@qq.com>								 |
-+----------------------------------------------------------------------+
+  +----------------------------------------------------------------------+
+  | Yod Framework as PHP extension                                       |
+  +----------------------------------------------------------------------+
+  | This source file is subject to version 3.01 of the PHP license,      |
+  | that is bundled with this package in the file LICENSE, and is        |
+  | available through the world-wide-web at the following url:           |
+  | http://www.php.net/license/3_01.txt                                  |
+  | If you did not receive a copy of the PHP license and are unable to   |
+  | obtain it through the world-wide-web, please send a note to          |
+  | license@php.net so we can mail you a copy immediately.               |
+  +----------------------------------------------------------------------+
+  | Author: Baoqiang Su  <zmrnet@qq.com>                                 |
+  +----------------------------------------------------------------------+
 */
 
 /* $Id$ */
@@ -88,9 +88,12 @@ static void yod_widget_construct(yod_widget_t *object, yod_request_t *request, c
 	zend_update_property(Z_OBJCE_P(object), object, ZEND_STRL("_request"), request TSRMLS_CC);
 
 	MAKE_STD_ZVAL(tpl_data);
-	yod_application_config(ZEND_STRL("tpl_data"), tpl_data TSRMLS_CC);
+	yod_application_config(ZEND_STRL("tpldata"), tpl_data TSRMLS_CC);
 	if (!tpl_data || Z_TYPE_P(tpl_data) != IS_ARRAY) {
-		array_init(tpl_data);
+		yod_application_config(ZEND_STRL("tpl_data"), tpl_data TSRMLS_CC);
+		if (!tpl_data || Z_TYPE_P(tpl_data) != IS_ARRAY) {
+			array_init(tpl_data);
+		}
 	}
 	spprintf(&tpl_path, 0, "%s/widgets", yod_runpath(TSRMLS_C));
 	MAKE_STD_ZVAL(tpl_view);

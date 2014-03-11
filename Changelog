@@ -1,4 +1,26 @@
-This file documents changes for Yod Framework release 1.3.0 and earlier.
+This file documents changes for Yod Framework release 1.3.1 and earlier.
+
+version 1.3.1:
+
+  - Change call_user_function to zend_call_function with zend_fcall_info_cache
+  - Remove methods errorAction and error404 in the class Yod_Request
+  - Add support for config tpldata and plugins
+  - Add a public method plugin in the class Yod_Controller, Yod_Model and Yod_Application
+  - Fixed a bug in yod_controller_assign when parameters 3 is null
+  - Add support for config urlrules and url_rules
+  - Fixed a bug in yod_charset, yod_viewext, yod_pathvar, yod_runpath, yod_extpath and yod_logpath
+  - Fixed a bug in yod_controller_forward
+  - Remove yod_application_run in yod_application__destruct
+  - Optimized code in yod_runpath, yod_extpath, yod_init_compile_file, yod_request_route etc
+  - Add a public method isAjax in the class Yod_Request
+  - Support config file YOD_RUNPATH/config.php
+  - Fixed a bug in yod_application_init_config
+  - Modify the method update of class Yod_Model an Yod_DbModel
+  - Fixed 2 bugs in yod_request_route (support $_REQUEST etc.)
+  - Fixed a bug in yod_application_config (support numeric key)
+  - Add a public property uri in the class Yod_Request
+  - Support short tag in the view file
+  - Fixed a bug in yod_dbpdo_connect (charset)
 
 version 1.3.0:
 
@@ -16,7 +38,7 @@ version 1.2.2:
   - Add an abstract method count in the class Yod_Database
   - Add a public method count in the class Yod_DbPdo
   - Change the method find of class Yod_Model an Yod_DbModel
-
+	
 version 1.2.1:
 
   - Add constants YOD_VIEWEXT, YOD_LOGPATH
@@ -38,7 +60,7 @@ version 1.2.0:
   - Compatible with ThinkPHP extended libraries
   - Written in C and build as PHP extension
   - Add the class Yod_DbPdo to the Yod extension
-
+	
 version 1.1.0:
 
   - Add constants YOD_CHARSET, YOD_PATHVAR

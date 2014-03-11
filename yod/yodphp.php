@@ -1,6 +1,6 @@
 <?php
 // +----------------------------------------------------------------------
-// | yodphp [ Yod PHP Framework ]
+// | yodphp [ Yod Framework for PHP ]
 // +----------------------------------------------------------------------
 // | Copyright (c) 2013 http://yodphp.com All rights reserved.
 // +----------------------------------------------------------------------
@@ -11,7 +11,7 @@
 
 // yodphp constant
 defined('YOD_RUNTIME') or define('YOD_RUNTIME', microtime(true));
-defined('YOD_VERSION') or define('YOD_VERSION', '1.3.0');
+defined('YOD_VERSION') or define('YOD_VERSION', '1.3.1');
 defined('YOD_FORWARD') or define('YOD_FORWARD', 5);
 defined('YOD_RUNMODE') or define('YOD_RUNMODE', 3);
 defined('YOD_CHARSET') or define('YOD_CHARSET', 'utf-8');
@@ -31,6 +31,7 @@ final class Yod_Application
 	protected static $_app;
 	protected static $_config = array();
 	protected static $_imports = array();
+	protected static $_plugins = array();
 	protected static $_running = false;
 
 	protected $_request = null;
@@ -48,6 +49,8 @@ final class Yod_Application
 			return;
 		}
 
+		defined('YOD_RUNPATH') or define('YOD_RUNPATH', dirname(__FILE__));
+		
 		// errorlog
 		if ((YOD_RUNMODE & 2) && defined('YOD_LOGPATH')) {
 			set_error_handler(array('Yod_Application', 'errorlog'));
@@ -86,6 +89,18 @@ final class Yod_Application
 						}
 					}
 					closedir($handle);
+				}
+			}
+		}
+		if (is_file(YOD_RUNPATH . '/config.php')) {
+			$develop = include YOD_RUNPATH . '/config.php';
+			if (is_array($develop)) {
+				foreach ($develop as $key => $value) {
+					if (isset(self::$_config[$key]) && is_array(self::$_config[$key]) && is_array($value)) {
+						self::$_config[$key] = array_merge(self::$_config[$key], $value);
+					} else {
+						self::$_config[$key] = $develop[$key];
+					}
 				}
 			}
 		}
@@ -147,9 +162,10 @@ final class Yod_Application
 	{
 		if (is_null($name)) {
 			return self::$_config;
-		} elseif(isset(self::$_config[$name])) {
+		}
+		if (isset(self::$_config[$name])) {
 			return self::$_config[$name];
-		} elseif(strstr($name, '.')) {
+		} elseif (strstr($name, '.')) {
 			$name = explode('.', $name);
 			$value = self::$_config;
 			foreach ($name as $skey) {
@@ -160,9 +176,8 @@ final class Yod_Application
 				}
 			}
 			return $value;
-		} else {
-			return null;
 		}
+		return null;
 	}
 
 	/**
@@ -178,7 +193,11 @@ final class Yod_Application
 		$classname = basename($classfile);
 
 		if (empty(self::$_imports[$alias])) {
-			if (strtolower(substr($classfile, 0, 4)) == 'yod/') {
+			if (class_exists($classname, false) || interface_exists($classname, false)) {
+				return self::$_imports[$alias] = true;
+			}
+
+			if (strncasecmp($classfile, 'yod/', 4) == 0) {
 				$classpath = YOD_EXTPATH . '/extends/' . substr($classfile, 4) . $classext;
 			} else {
 				$classpath = YOD_RUNPATH . '/extends/' . $classfile . $classext;
@@ -188,6 +207,44 @@ final class Yod_Application
 		}
 
 		return class_exists($classname, false) || interface_exists($classname, false);
+	}
+
+	/**
+	 * plugin
+	 * @access public
+	 * @param string $alias
+	 * @param string $classext
+	 * @return mixed
+	 */
+	public static function plugin($alias, $classext = '.class.php')
+	{
+		$classfile = trim(str_replace('\\', '/', str_replace('.', '/', $alias)), '/');
+		$classname = basename($classfile);
+
+		if (empty(self::$_plugins[$alias])) {
+			if (!class_exists($classname, false) && !interface_exists($classname, false)) {
+				if (strncasecmp($classfile, 'yod/', 4) == 0) {
+					if (strncasecmp($classname, 'Yod_', 4)) {
+						$classname = 'Yod_' . $classname;
+					}
+					$classpath = YOD_EXTPATH . '/plugins/' . substr($classfile, 4) . $classext;
+				} elseif (strncasecmp($classname, 'Yod_', 4) == 0) {
+					$classpath = YOD_EXTPATH . '/plugins/' . substr($classfile, 0, -strlen($classname)) . substr($classname, 4) . $classext;
+				} else {
+					$classpath = YOD_RUNPATH . '/plugins/' . $classfile . $classext;
+				}
+				if (is_file($classpath)) include $classpath;
+			}
+			
+			$config = self::config('plugins.' . strtolower($alias));
+			if (is_null($config)) {
+				self::$_plugins[$alias] = new $classname();
+			} else {
+				self::$_plugins[$alias] = new $classname($config);
+			}
+		}
+
+		return self::$_plugins[$alias];
 	}
 
 	/**
@@ -203,7 +260,9 @@ final class Yod_Application
 		}
 		if (YOD_RUNMODE & 1) {
 			if (defined('YOD_RUNPATH')) {
-				include $_SERVER['SCRIPT_FILENAME'];
+				if (is_file($_SERVER['SCRIPT_FILENAME'])) {
+					include $_SERVER['SCRIPT_FILENAME'];
+				}
 				if (isset($config)) {
 					$GLOBALS['config'] = $config;
 				}
@@ -229,17 +288,17 @@ final class Yod_Application
 			$classfile = str_replace('\\', '_', $classname);
 		}
 
-		if (substr($classfile, 0, 4) == 'Yod_') { // yodphp extends class
-			if (strncmp($classfile, 'Yod_Db', 6) == 0) {
+		if (strncasecmp($classfile, 'Yod_', 4) == 0) { // yodphp extends class
+			if (strncasecmp($classfile, 'Yod_Db', 6) == 0) {
 				$directory = '/drivers/';
 			} else {
 				$directory = '/extends/';
 			}
 			$classpath = YOD_EXTPATH . $directory . substr($classfile, 4) . '.class.php';
 		} else {
-			if (strncmp(substr($classname, -10), 'Controller', 10) == 0) {
+			if (strncasecmp(substr($classname, -10), 'Controller', 10) == 0) {
 				$directory = '/controllers/';
-			} elseif (strncmp(substr($classname, -5), 'Model', 5) == 0) {
+			} elseif (strncasecmp(substr($classname, -5), 'Model', 5) == 0) {
 				$directory = '/models/';
 			} else {
 				$directory = '/extends/';
@@ -315,7 +374,16 @@ final class Yod_Application
 	 */
 	public function __destruct()
 	{
-
+		$runtime = (microtime(true) - YOD_RUNTIME) * 1000;
+		$logdata = '<hr>runtime:' . $runtime . 'ms'. PHP_EOL;
+		if (YOD_RUNMODE & 4) {
+			echo $logdata;
+		}
+		if ((YOD_RUNMODE & 8) && defined('YOD_LOGPATH')) {
+			$logfile = YOD_LOGPATH . '/debugs.log';
+			is_dir(YOD_LOGPATH) or mkdir(YOD_LOGPATH);
+			file_put_contents($logfile, $logdata, FILE_APPEND);
+		}
 	}
 
 }
@@ -329,6 +397,7 @@ final class Yod_Request
 	protected $_routed = false;
 	protected $_dispatched = false;
 
+	public $uri;
 	public $controller;
 	public $action;
 	public $params;
@@ -364,6 +433,7 @@ final class Yod_Request
 	public function route($route = null)
 	{
 		$this->_routed = true;
+		$this->params = array();
 
 		if (empty($route)) {
 			if (strtoupper($this->method) == 'CLI') {
@@ -376,10 +446,79 @@ final class Yod_Request
 				$route = $_GET[YOD_PATHVAR];
 			}
 		}
-		$route = str_replace('\\', '/', $route);
-		$route = str_replace('//', '/', $route);
-		$route = explode('/', trim($route, '/'));
+		$this->uri = $route = trim(str_replace('//', '/', str_replace('\\', '/', $route)), '/');
 
+		// rules
+		($rules = Yod_Application::config('urlrules')) or ($rules = Yod_Application::config('url_rules'));
+		if ($rules && is_array($rules)) {
+			foreach ($rules as $rule1 => $route1) {
+				if (substr($rule1, -2) == '/*') {
+					$len1 = strlen($route);
+					$pos1 = strlen($rule1) - 2;
+					if (strncasecmp($route, $rule1, $pos1) || ($len1 > $pos1 && strncasecmp($route, $rule1, $pos1 + 1))) {
+						continue;
+					}
+					if (is_array($route1)) {
+						if (isset($route1[1]) && is_array($route1[1])) {
+							$_GET = array_merge($_GET, $route1[1]);
+							$_REQUEST = array_merge($_REQUEST, $route1[1]);
+							$this->params = array_merge($this->params, $route1[1]);
+						}
+						$route1 = (isset($route1[0]) && is_string($route1[0])) ? $route1[0] : '';
+					}
+					if ($route1 == '*') {
+						$route1 = substr($route, $pos1 + 1);
+					}
+					$route = trim(str_replace('//', '/', str_replace('\\', '/', $route1)), '/');
+					break;
+				}
+			}
+			$count = substr_count($route, '/');
+			foreach ($rules as $rule1 => $route1) {
+				if (strncmp(substr($rule1, -2), '/*', 2) && substr_count($rule1, '/') == $count) {
+					if ($pos1 = strpos($rule1, ':')) {
+						if (strncasecmp($route, $rule1, $pos1)) {
+							continue;
+						}
+						if (($pos2 = strpos($rule1, ':')) && ($pos2 = strpos($rule1, '/', $pos2))) {
+							$tail = substr($rule1, $pos2);
+							$tail_len = strlen($tail);
+							if (strncasecmp(substr($route, -$tail_len), $tail, $tail_len)) {
+								continue;
+							}
+						}
+					} elseif (strncasecmp($route, $rule1, strlen($rule1) + 1)) {
+						continue;
+					}
+
+					if ($pos1) {
+						$rule1 = explode('/', substr($rule1, $pos1));
+						$temp1 = explode('/', substr($route, $pos1));
+						foreach ($rule1 as $key => $param) {
+							if ($param[0] == ':') {
+								$name = substr($param, 1);
+								$_GET[$name] = isset($temp1[$key]) ? $temp1[$key] : null;
+								$this->params[$name] = $_GET[$name];
+								$_REQUEST[$name] = $_GET[$name];
+							}
+						}
+					}
+					
+					if (is_array($route1)) {
+						if (isset($route1[1]) && is_array($route1[1])) {
+							$_GET = array_merge($_GET, $route1[1]);
+							$_REQUEST = array_merge($_REQUEST, $route1[1]);
+							$this->params = array_merge($this->params, $route1[1]);
+						}
+						$route1 = (isset($route1[0]) && is_string($route1[0])) ? $route1[0] : '';
+					}
+					$route = trim(str_replace('//', '/', str_replace('\\', '/', $route1)), '/');
+					break;
+				}
+			}
+		}
+
+		$route = explode('/', $route);
 		if (isset($_SERVER['SCRIPT_FILENAME'])) {
 			$controller = basename($_SERVER['SCRIPT_FILENAME'], '.php');
 			$classname = $controller . 'Controller';
@@ -390,11 +529,11 @@ final class Yod_Request
 
 		$this->controller = empty($route[0]) ? 'Index' : ucfirst(strtolower($route[0]));
 		$this->action = empty($route[1]) ? 'index' : strtolower($route[1]);
-		$this->params = array();
 		$count = count($route);
 		for ($i=2; $i<$count; $i+=2) {
-			$_GET[$route[$i]] = empty($route[$i+1]) ? '' : $route[$i+1];
+			$_GET[$route[$i]] = isset($route[$i+1]) ? $route[$i+1] : null;
 			$this->params[$route[$i]] = $_GET[$route[$i]];
+			$_REQUEST[$route[$i]] = $_GET[$route[$i]];
 		}
 
 		return $this;
@@ -497,71 +636,82 @@ final class Yod_Request
 	}
 
 	/**
-	* isGet
-	* @access public
-	* @param void
-	* @return boolean
-	*/
+	 * isGet
+	 * @access public
+	 * @param void
+	 * @return boolean
+	 */
 	public function isGet()
 	{
 		return (strtoupper($this->method) == 'GET');
 	}
 
 	/**
-	* isPost
-	* @access public
-	* @param void
-	* @return boolean
-	*/
+	 * isPost
+	 * @access public
+	 * @param void
+	 * @return boolean
+	 */
 	public function isPost()
 	{
 		return (strtoupper($this->method) == 'POST');
 	}
 
 	/**
-	* isPut
-	* @access public
-	* @param void
-	* @return boolean
-	*/
+	 * isPut
+	 * @access public
+	 * @param void
+	 * @return boolean
+	 */
 	public function isPut()
 	{
 		return (strtoupper($this->method) == 'PUT');
 	}
 
 	/**
-	* isHead
-	* @access public
-	* @param void
-	* @return boolean
-	*/
+	 * isHead
+	 * @access public
+	 * @param void
+	 * @return boolean
+	 */
 	public function isHead()
 	{
 		return (strtoupper($this->method) == 'HEAD');
 	}
 
 	/**
-	* isOptions
-	* @access public
-	* @param void
-	* @return boolean
-	*/
+	 * isOptions
+	 * @access public
+	 * @param void
+	 * @return boolean
+	 */
 	public function isOptions()
 	{
 		return (strtoupper($this->method) == 'OPTIONS');
 	}
 
 	/**
-	* isCli
-	* @access public
-	* @param void
-	* @return boolean
-	*/
+	 * isCli
+	 * @access public
+	 * @param void
+	 * @return boolean
+	 */
 	public function isCli()
 	{
 		return (strtoupper($this->method) == 'CLI');
 	}
 
+	/**
+	 * isAjax
+	 * @access public
+	 * @param void
+	 * @return boolean
+	 */
+	public function isAjax()
+	{
+		return empty($_SERVER['HTTP_X_REQUESTED_WITH']) ?
+			false : (strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest');
+	}
 }
 
 /**
@@ -595,7 +745,8 @@ abstract class Yod_Controller
 		$this->_action = empty($action) ? $request->action : strtolower($action);
 		$this->_request = $request;
 		$this->_view['tpl_path'] = YOD_RUNPATH . '/views';
-		if ($tpl_data = $this->config('tpl_data')) {
+		($tpl_data = $this->config('tpldata')) or ($tpl_data = $this->config('tpl_data'));
+		if ($tpl_data) {
 			$this->_view['tpl_data'] = $tpl_data;
 		}
 
@@ -660,6 +811,18 @@ abstract class Yod_Controller
 	protected function import($alias, $classext = '.class.php')
 	{
 		return Yod_Application::import($alias, $classext);
+	}
+
+	/**
+	 * plugin
+	 * @access protected
+	 * @param string $alias
+	 * @param string $classext
+	 * @return mixed
+	 */
+	protected function plugin($alias, $classext = '.class.php')
+	{
+		return Yod_Application::plugin($alias, $classext);
 	}
 
 	/**
@@ -903,7 +1066,8 @@ abstract class Yod_Widget extends Yod_Controller
 		$this->_action = empty($action) ? 'index' : strtolower($action);
 		$this->_request = $request;
 		$this->_view['tpl_path'] = YOD_RUNPATH . '/widgets';
-		if ($tpl_data = $this->config('tpl_data')) {
+		($tpl_data = $this->config('tpldata')) or ($tpl_data = $this->config('tpl_data'));
+		if ($tpl_data) {
 			$this->_view['tpl_data'] = $tpl_data;
 		}
 
@@ -1123,6 +1287,18 @@ class Yod_Model
 	 */
 	public function update($data, $where = '', $params = array())
 	{
+		if (empty($data)) return false;
+		foreach ($data as $name => $value) {
+			if (is_string($name) && $name[0] == ':') {
+				if (empty($where)) {
+					$where = substr($name, 1) . ' = ' . $name;
+				} else {
+					$where .= ' AND ' . substr($name, 1) . ' = ' . $name;
+				}
+				$params[$name] = $value;
+				unset($data[$name]);
+			}
+		}
 		return $this->_db->update($data, $this->_table, $where, $params);
 	}
 
@@ -1169,6 +1345,18 @@ class Yod_Model
 	protected function import($alias, $classext = '.class.php')
 	{
 		return Yod_Application::import($alias, $classext);
+	}
+
+	/**
+	 * plugin
+	 * @access protected
+	 * @param string $alias
+	 * @param string $classext
+	 * @return mixed
+	 */
+	protected function plugin($alias, $classext = '.class.php')
+	{
+		return Yod_Application::plugin($alias, $classext);
 	}
 
 	/**
@@ -1261,7 +1449,7 @@ class Yod_DbModel extends Yod_Model
 	 * @param mixed		$select
 	 * @return mixed
 	 */
-	public function find($where = null, $params = array(), $select = '*')
+	public function find($where = null, $params = array(), $select = null)
 	{
 		if (is_numeric($where)) {
 			$where = 'id = '. $where;
@@ -1285,7 +1473,7 @@ class Yod_DbModel extends Yod_Model
 	 * @param mixed		$select
 	 * @return mixed
 	 */
-	public function select($where = null, $params = array(), $select = '*')
+	public function select($where = null, $params = array(), $select = null)
 	{
 		if (is_numeric($where)) {
 			$where = 'id = '. $where;
@@ -1362,6 +1550,18 @@ class Yod_DbModel extends Yod_Model
 			trigger_error('You have an error in your SQL syntax: table name is empty', E_USER_WARNING);
 			return false;
 		}
+		if (empty($data)) return false;
+		foreach ($data as $name => $value) {
+			if (is_string($name) && $name[0] == ':') {
+				if (empty($where)) {
+					$where = substr($name, 1) . ' = ' . $name;
+				} else {
+					$where .= ' AND ' . substr($name, 1) . ' = ' . $name;
+				}
+				$params[$name] = $value;
+				unset($data[$name]);
+			}
+		}
 		$this->where($where, $params);
 		$result = $this->_db->update($data, $this->_table, $this->_query['WHERE'], $this->_params);
 		$this->initQuery();
@@ -1398,7 +1598,7 @@ class Yod_DbModel extends Yod_Model
 		if (is_array($select)) {
 			foreach ($select as $key => $value) {
 				if (is_string($key)) {
-					$select[$key] = "{$key} AS {$value}"; 
+					$select[$key] = "{$value} AS {$key}"; 
 				}
 			}
 			$select = implode(', ', $select);
@@ -1989,12 +2189,12 @@ abstract class Yod_Database
 	abstract public function rollback();
 
 	/**
-	 * insertid
+	 * insertId
 	 * @access public
 	 * @param void
 	 * @return integer
 	 */
-	abstract public function insertid();
+	abstract public function insertId();
 
 	/**
 	 * quote
@@ -2264,12 +2464,12 @@ class Yod_DbPdo extends Yod_Database
 	}
 
 	/**
-	 * insertid
+	 * insertId
 	 * @access public
 	 * @param void
 	 * @return integer
 	 */
-	public function insertid()
+	public function insertId()
 	{
 		return $this->_linkid->lastInsertId();
 	}
