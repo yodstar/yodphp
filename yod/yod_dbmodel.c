@@ -863,7 +863,7 @@ static int yod_dbmodel_find(yod_dbmodel_t *object, char *where, uint where_len, 
 
 #if PHP_YOD_DEBUG
 		yod_debugl(1 TSRMLS_CC);
-		yod_debugf(Z_STRVAL_P(query));
+		yod_debugf("%s", Z_STRVAL_P(query));
 		yod_debugl(1 TSRMLS_CC);
 #endif
 
@@ -945,7 +945,7 @@ static int yod_dbmodel_select(yod_dbmodel_t *object, char *where, uint where_len
 
 #if PHP_YOD_DEBUG
 		yod_debugl(1 TSRMLS_CC);
-		yod_debugf(Z_STRVAL_P(query));
+		yod_debugf("%s", Z_STRVAL_P(query));
 		yod_debugl(1 TSRMLS_CC);
 #endif
 
@@ -1028,7 +1028,7 @@ static int yod_dbmodel_count(yod_dbmodel_t *object, char *where, uint where_len,
 
 #if PHP_YOD_DEBUG
 		yod_debugl(1 TSRMLS_CC);
-		yod_debugf(Z_STRVAL_P(query));
+		yod_debugf("%s", Z_STRVAL_P(query));
 		yod_debugl(1 TSRMLS_CC);
 #endif
 
@@ -1077,7 +1077,7 @@ static int yod_dbmodel_count(yod_dbmodel_t *object, char *where, uint where_len,
 */
 static int yod_dbmodel_save(yod_dbmodel_t *object, zval *data, char *where, uint where_len, zval *params, zval *retval TSRMLS_DC) {
 	yod_database_t *yoddb;
-	zval *table, *params1, *query, **ppval;
+	zval *table, *params1, *query, *pzval, **ppval;
 
 #if PHP_YOD_DEBUG
 	yod_debugl(1 TSRMLS_CC);
@@ -1120,14 +1120,24 @@ static int yod_dbmodel_save(yod_dbmodel_t *object, zval *data, char *where, uint
 		}
 
 		if (!ppval || Z_TYPE_PP(ppval) != IS_STRING || Z_STRLEN_PP(ppval) == 0) {
-			yod_database_insert(yoddb, data, Z_STRVAL_P(table), Z_STRLEN_P(table), 0, retval TSRMLS_CC);
+			if (yod_database_insert(yoddb, data, Z_STRVAL_P(table), Z_STRLEN_P(table), 0, NULL TSRMLS_CC)) {
+				if (retval) {
+					zend_call_method_with_0_params(&yoddb, Z_OBJCE_P(yoddb), NULL, "insertid", &pzval);
+					if (pzval) {
+						ZVAL_ZVAL(retval, pzval, 1, 1);
+					} else {
+						ZVAL_BOOL(retval, 0);
+					}
+				}
+				yod_dbmodel_initquery(object, NULL TSRMLS_CC);
+				return 1;
+			}
 		} else {
 			params1 = zend_read_property(Z_OBJCE_P(object), object, ZEND_STRL("_params"), 1 TSRMLS_CC);
 			yod_database_update(yoddb, data, Z_STRVAL_P(table), Z_STRLEN_P(table), Z_STRVAL_PP(ppval), Z_STRLEN_PP(ppval), params1, retval TSRMLS_CC);
+			yod_dbmodel_initquery(object, NULL TSRMLS_CC);
+			return 1;
 		}
-
-		yod_dbmodel_initquery(object, NULL TSRMLS_CC);
-		return 1;
 	}
 
 	yod_dbmodel_initquery(object, NULL TSRMLS_CC);
@@ -1457,7 +1467,7 @@ PHP_METHOD(yod_dbmodel, save) {
 /** {{{ proto public Yod_DbModel::update($data, $where = '', $params = array())
 */
 PHP_METHOD(yod_dbmodel, update) {
-	zval *data = NULL, *params = NULL;
+	zval *data = NULL, *params = NULL, *data1;
 	char *where = NULL;
 	uint where_len = 0;
 
@@ -1465,7 +1475,14 @@ PHP_METHOD(yod_dbmodel, update) {
 		return;
 	}
 
-	yod_dbmodel_update(getThis(), data, where, where_len, params, return_value TSRMLS_CC);
+	if (!data) {
+		RETURN_FALSE;
+	}
+
+	MAKE_STD_ZVAL(data1);
+	ZVAL_ZVAL(data1, data, 1, 0);
+	yod_dbmodel_update(getThis(), data1, where, where_len, params, return_value TSRMLS_CC);
+	zval_ptr_dtor(&data1);
 }
 /* }}} */
 

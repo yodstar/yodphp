@@ -119,7 +119,7 @@ class IndexController extends Yod_Controller
 ?>
 --EXPECTF--
 create:bool(true)
-save:int(1)
+save:string(1) "1"
 find:Array
 (
     [id] => 1

@@ -11,7 +11,7 @@
 
 // yodphp constant
 defined('YOD_RUNTIME') or define('YOD_RUNTIME', microtime(true));
-defined('YOD_VERSION') or define('YOD_VERSION', '1.3.1');
+defined('YOD_VERSION') or define('YOD_VERSION', '1.3.2');
 defined('YOD_FORWARD') or define('YOD_FORWARD', 5);
 defined('YOD_RUNMODE') or define('YOD_RUNMODE', 3);
 defined('YOD_CHARSET') or define('YOD_CHARSET', 'utf-8');
@@ -415,7 +415,7 @@ final class Yod_Request
 			$this->method = $_SERVER['REQUEST_METHOD'];
 		} else {
 			if (!strncasecmp(PHP_SAPI, 'cli', 3)) {
-				$this->method = 'Cli';
+				$this->method = 'CLI';
 			} else {
 				$this->method = 'Unknown';
 			}
@@ -1199,7 +1199,7 @@ class Yod_Model
 		if (is_numeric($where)) {
 			$where = 'id = '. $where;
 		}
-		if ($result = $this->_db->select($select, $this->_table, $where, $params, "LIMIT 1")) {
+		if ($result = $this->_db->select($select, $this->_table, $where, $params, 'LIMIT 1')) {
 			$data = $this->_db->fetch($result);
 			$this->_db->free($result);
 			return $data;
@@ -1271,7 +1271,10 @@ class Yod_Model
 	public function save($data, $where = '', $params = array())
 	{
 		if (empty($where)) {
-			return $this->_db->insert($data, $this->_table);
+			if ($this->_db->insert($data, $this->_table)) {
+				return $this->_db->insertId();
+			}
+			return false;
 		} else {
 			return $this->_db->update($data, $this->_table, $where, $params);
 		}
@@ -1528,7 +1531,11 @@ class Yod_DbModel extends Yod_Model
 		}
 		$this->where($where, $params);
 		if (empty($this->_query['WHERE'])) {
-			$result = $this->_db->insert($data, $this->_table);
+			if ($this->_db->insert($data, $this->_table)) {
+				$result = $this->_db->insertId();
+			} else {
+				$result = false;
+			}
 		} else {
 			$result = $this->_db->update($data, $this->_table, $this->_query['WHERE'], $this->_params);
 		}
@@ -1978,7 +1985,7 @@ abstract class Yod_Database
 	 * @param boolean $replace
 	 * @return mixed
 	 */
-	public function insert($data, $table, $replace=false)
+	public function insert($data, $table, $replace = false)
 	{
 		if (empty($data) || empty($table)) return false;
 		$values = $fields = $params = array();
@@ -2008,10 +2015,14 @@ abstract class Yod_Database
 		if (empty($data) || empty($table)) return false;
 		$params1 = $update = array();
 		foreach ($data as $key => $value) {
-			if(is_scalar($value) || is_null(($value))) {
-				$name = ':'. md5($key);
-				$update[] = $key.' = '.$name;
-				$params1[$name] = $value;
+			if (is_scalar($value) || is_null($value)) {
+				if (is_numeric($key)) {
+					$update[] = $value;
+				} else {
+					$name = ':'. md5($key);
+					$update[] = $key.' = '.$name;
+					$params1[$name] = $value;
+				}
 			}
 		}
 		$params1 = array_merge($params1, $params);
@@ -2328,6 +2339,7 @@ class Yod_DbPdo extends Yod_Database
 				}
 				return $affected ? $retval : true;
 			}
+			return false;
 		}
 		if ($this->_result = $this->_linkid->prepare($query)) {
 			$bind_params = array();
@@ -2555,4 +2567,103 @@ class Yod_DbPdo extends Yod_Database
 			return false;
 		}
 	}
+}
+
+/**
+ * Yod_Plugin
+ * 
+ */
+abstract class Yod_Plugin
+{
+
+}
+
+/**
+ * Yod_Global
+ *
+ */
+abstract class Yod_G
+{
+	
+	/**
+	 * app
+	 * @access public
+	 * @param mixed $config
+	 * @return Yod_Application
+	 */
+	public static function app($config = null)
+	{
+		return Yod_Application::app($config);
+	}
+
+	/**
+	 * config
+	 * @access public
+	 * @param string $name
+	 * @return array
+	 */
+	public static function config($name = null)
+	{
+		return Yod_Application::config($name);
+	}
+
+	/**
+	 * import
+	 * @access public
+	 * @param string $alias
+	 * @param string $classext
+	 * @return boolean
+	 */
+	public static function import($alias, $classext = '.class.php')
+	{
+		return Yod_Application::import($alias, $classext);
+	}
+
+	/**
+	 * plugin
+	 * @access public
+	 * @param string $alias
+	 * @param string $classext
+	 * @return mixed
+	 */
+	public static function plugin($alias, $classext = '.class.php')
+	{
+		return Yod_Application::plugin($alias, $classext);
+	}
+
+	/**
+	 * model
+	 * @access public
+	 * @param string $name
+	 * @param mixed $config
+	 * @return Yod_Model
+	 */
+	public static function model($name = '', $config = '')
+	{
+		return Yod_Model::getInstance($name, $config);
+	}
+
+	/**
+	 * dbmodel
+	 * @access public
+	 * @param string $name
+	 * @param mixed $config
+	 * @return Yod_DbModel
+	 */
+	public static function dbmodel($name = '', $config = '')
+	{
+		return Yod_DbModel::getInstance($name, $config);
+	}
+
+	/**
+	 * db
+	 * @access public
+	 * @param mixed $config
+	 * @return Yod_Database
+	 */
+	public static function db($config = 'db_dsn')
+	{
+		return Yod_Database::getInstance($config);
+	}
+
 }

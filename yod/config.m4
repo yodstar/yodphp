@@ -41,7 +41,8 @@ if test "$PHP_YOD" != "no"; then
 		AC_MSG_RESULT([$php_version, ok])
 	fi
 
-	ext_files="yod.c yod_application.c yod_request.c yod_controller.c yod_action.c yod_widget.c yod_model.c yod_dbmodel.c yod_database.c yod_dbpdo.c"
+	ext_files="yod.c yod_application.c yod_request.c yod_controller.c yod_action.c yod_widget.c yod_model.c yod_dbmodel.c yod_database.c yod_dbpdo.c yod_plugin.c"
+
 	if test "$PHP_YOD_DEBUG" = "yes"; then
 		ext_files=$ext_files" yod_debug.c"
 	fi

@@ -7,6 +7,9 @@ Check for yod instantiate
 error_reporting(E_ALL);
 date_default_timezone_set('Asia/Shanghai');
 
+define('TESTS_PATH', dirname(__FILE__));
+include TESTS_PATH . '/clean.php';
+
 defined('YOD_RUNMODE') or define('YOD_RUNMODE', 0);
 
 $yodapp = new Yod_Application();

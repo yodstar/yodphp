@@ -237,18 +237,16 @@ static int yod_dbpdo_connect(yod_dbpdo_t *object, zval *config, long linknum, zv
 			ZVAL_STRINGL(argv[0] , Z_STRVAL_PP(ppval), Z_STRLEN_PP(ppval), 1);
 
 			/* argv.user */
-			if (zend_hash_find(Z_ARRVAL_P(dbconfig), ZEND_STRS("user"), (void **)&ppval) == SUCCESS &&
-				Z_TYPE_PP(ppval) == IS_STRING
-			) {
+			if (zend_hash_find(Z_ARRVAL_P(dbconfig), ZEND_STRS("user"), (void **)&ppval) == SUCCESS) {
+				convert_to_string(*ppval);
 				ZVAL_STRINGL(argv[1], Z_STRVAL_PP(ppval), Z_STRLEN_PP(ppval), 1);
 			} else {
 				ZVAL_NULL(argv[1]);
 			}
 
 			/* argv.pass */
-			if (zend_hash_find(Z_ARRVAL_P(dbconfig), ZEND_STRS("pass"), (void **)&ppval) == SUCCESS &&
-				Z_TYPE_PP(ppval) == IS_STRING
-			) {
+			if (zend_hash_find(Z_ARRVAL_P(dbconfig), ZEND_STRS("pass"), (void **)&ppval) == SUCCESS) {
+				convert_to_string(*ppval);
 				ZVAL_STRINGL(argv[2], Z_STRVAL_PP(ppval), Z_STRLEN_PP(ppval), 1);
 			} else {
 				ZVAL_NULL(argv[2]);
@@ -265,7 +263,7 @@ static int yod_dbpdo_connect(yod_dbpdo_t *object, zval *config, long linknum, zv
 
 			/* pconnect */
 			if (zend_hash_find(Z_ARRVAL_P(dbconfig), ZEND_STRS("pconnect"), (void **)&ppval) == SUCCESS &&
-				Z_TYPE_PP(ppval) == IS_BOOL && Z_BVAL_PP(ppval)
+				(Z_TYPE_PP(ppval) == IS_BOOL && Z_BVAL_PP(ppval)) || (Z_TYPE_PP(ppval) == IS_LONG && Z_LVAL_PP(ppval))
 			) {
 #ifndef ZEND_FETCH_CLASS_SILENT
 				if (zend_get_constant_ex(ZEND_STRL("PDO::ATTR_PERSISTENT"), &persist, NULL TSRMLS_CC)) {
@@ -278,7 +276,7 @@ static int yod_dbpdo_connect(yod_dbpdo_t *object, zval *config, long linknum, zv
 				}
 			}
 
-			yod_call_method_with_4_params(&linkid, Z_OBJCE_P(linkid), NULL, ZEND_CONSTRUCTOR_FUNC_NAME, NULL, argv[0], argv[1], argv[2], argv[3]);
+			yod_call_method_with_4_params(&linkid, *pce, &(*pce)->constructor, ZEND_CONSTRUCTOR_FUNC_NAME, NULL, argv[0], argv[1], argv[2], argv[3]);
 
 			zval_ptr_dtor(&argv[0]);
 			zval_ptr_dtor(&argv[1]);
@@ -286,9 +284,8 @@ static int yod_dbpdo_connect(yod_dbpdo_t *object, zval *config, long linknum, zv
 			zval_ptr_dtor(&argv[3]);
 			
 			/* charset */
-			if (zend_hash_find(Z_ARRVAL_P(dbconfig), ZEND_STRS("charset"), (void **)&ppval) == SUCCESS &&
-				Z_TYPE_PP(ppval) == IS_STRING && Z_STRLEN_PP(ppval)
-			) {
+			if (zend_hash_find(Z_ARRVAL_P(dbconfig), ZEND_STRS("charset"), (void **)&ppval) == SUCCESS) {
+				convert_to_string(*ppval);
 				squery_len = spprintf(&squery, 0, "SET NAMES %s", Z_STRVAL_PP(ppval));
 			} else {
 				squery_len = spprintf(&squery, 0, "SET NAMES utf8");
@@ -363,7 +360,9 @@ int yod_dbpdo_execute(yod_dbpdo_t *object, zval *query, zval *params, int affect
 #endif
 
 	if (!query || Z_TYPE_P(query) != IS_STRING || !object) {
-		ZVAL_BOOL(retval, 0);
+		if (retval) {
+			ZVAL_BOOL(retval, 0);
+		}
 		return 0;
 	}
 
@@ -380,10 +379,12 @@ int yod_dbpdo_execute(yod_dbpdo_t *object, zval *query, zval *params, int affect
 				if (params && Z_TYPE_P(params) == IS_BOOL) {
 					affected = Z_BVAL_P(params);
 				}
-				if (affected) {
-					ZVAL_ZVAL(retval, pzval, 1, 0);
-				} else {
-					ZVAL_BOOL(retval, 1);
+				if (retval) {
+					if (affected) {
+						ZVAL_ZVAL(retval, pzval, 1, 0);
+					} else {
+						ZVAL_BOOL(retval, 1);
+					}
 				}
 				zval_ptr_dtor(&pzval);
 				return 1;
@@ -424,7 +425,10 @@ int yod_dbpdo_execute(yod_dbpdo_t *object, zval *query, zval *params, int affect
 				zval_ptr_dtor(&result);
 
 				if (pzval) {
-					ZVAL_ZVAL(retval, pzval, 1, 1);
+					if (retval) {
+						ZVAL_ZVAL(retval, pzval, 1, 0);
+					}
+					zval_ptr_dtor(&pzval);
 					return 1;
 				}
 			} else {
@@ -1056,7 +1060,7 @@ PHP_METHOD(yod_dbpdo, errNo) {
 	object = getThis();
 
 	result = zend_read_property(Z_OBJCE_P(object), object, ZEND_STRL("_result"), 1 TSRMLS_CC);
-	if (result || Z_TYPE_P(result) == IS_OBJECT) {
+	if (result && Z_TYPE_P(result) == IS_OBJECT) {
 		zend_call_method_with_0_params(&result, Z_OBJCE_P(result), NULL, "errorcode", &errcode);
 		if (errcode) {
 			RETURN_ZVAL(errcode, 1, 1);
@@ -1089,7 +1093,7 @@ PHP_METHOD(yod_dbpdo, error) {
 	object = getThis();
 	
 	result = zend_read_property(Z_OBJCE_P(object), object, ZEND_STRL("_result"), 1 TSRMLS_CC);
-	if (result || Z_TYPE_P(result) == IS_OBJECT) {
+	if (result && Z_TYPE_P(result) == IS_OBJECT) {
 		zend_call_method_with_0_params(&result, Z_OBJCE_P(result), NULL, "errorinfo", &errinfo);
 		if (errinfo) {
 			if (Z_TYPE_P(errinfo) == IS_ARRAY &&

@@ -706,7 +706,7 @@ static void yod_controller_widget(yod_controller_t *object, char *route, uint ro
 		MAKE_STD_ZVAL(target);
 		object_init_ex(target, *pce);
 		if (zend_hash_exists(&(*pce)->function_table, ZEND_STRS(ZEND_CONSTRUCTOR_FUNC_NAME))) {
-			yod_call_method_with_3_params(&target, *pce, NULL, ZEND_CONSTRUCTOR_FUNC_NAME, NULL, request, action1, params1);
+			yod_call_method_with_3_params(&target, *pce, &(*pce)->constructor, ZEND_CONSTRUCTOR_FUNC_NAME, NULL, request, action1, params1);
 		}
 		zval_ptr_dtor(&target);
 	} else {
@@ -721,7 +721,7 @@ static void yod_controller_widget(yod_controller_t *object, char *route, uint ro
 				MAKE_STD_ZVAL(target);
 				object_init_ex(target, *pce);
 				if (zend_hash_exists(&(*pce)->function_table, ZEND_STRS(ZEND_CONSTRUCTOR_FUNC_NAME))) {
-					yod_call_method_with_3_params(&target, *pce, NULL, ZEND_CONSTRUCTOR_FUNC_NAME, NULL, request, action1, params1);
+					yod_call_method_with_3_params(&target, *pce, &(*pce)->constructor, ZEND_CONSTRUCTOR_FUNC_NAME, NULL, request, action1, params1);
 				}
 				zval_ptr_dtor(&target);
 			} else {

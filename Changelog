@@ -1,4 +1,12 @@
-This file documents changes for Yod Framework release 1.3.1 and earlier.
+This file documents changes for Yod Framework release 1.3.2 and earlier.
+
+version 1.3.2:
+
+  - Add abstract class Yod
+  - Improving the method update of class Yod_Database
+  - Fixed a bug in yod_model_update, yod_dbmodel_update
+  - Modify the method save of class Yod_Model an Yod_DbModel
+  - Add abstract class Yod_Plugin
 
 version 1.3.1:
 

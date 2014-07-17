@@ -549,7 +549,7 @@ PHP_METHOD(yod_model, count) {
 PHP_METHOD(yod_model, save) {
 	yod_database_t *yoddb;
 	yod_model_t *object;
-	zval *table, *data = NULL, *params = NULL;
+	zval *pzval, *table, *data = NULL, *params = NULL;
 	char *where = NULL;
 	uint where_len = 0;
 
@@ -578,11 +578,17 @@ PHP_METHOD(yod_model, save) {
 	if (table) {
 		convert_to_string(table);
 		if (where_len == 0) {
-			yod_database_insert(yoddb, data, Z_STRVAL_P(table), Z_STRLEN_P(table), 0, return_value TSRMLS_CC);
+			if (yod_database_insert(yoddb, data, Z_STRVAL_P(table), Z_STRLEN_P(table), 0, NULL TSRMLS_CC)) {
+				zend_call_method_with_0_params(&yoddb, Z_OBJCE_P(yoddb), NULL, "insertid", &pzval);
+				if (pzval) {
+					RETURN_ZVAL(pzval, 1, 1);
+				}
+				RETURN_FALSE;
+			}
 		} else {
 			yod_database_update(yoddb, data, Z_STRVAL_P(table), Z_STRLEN_P(table), where, where_len, params, return_value TSRMLS_CC);
+			return;
 		}
-		return;
 	}
 
 	RETURN_FALSE;
@@ -594,7 +600,7 @@ PHP_METHOD(yod_model, save) {
 PHP_METHOD(yod_model, update) {
 	yod_database_t *yoddb;
 	yod_model_t *object;
-	zval *table, *data = NULL, *params = NULL, *params1, **data1;
+	zval *table, *data = NULL, *params = NULL, *params1, *data1, **ppval;
 	char *where = NULL, *where1, *where2;
 	uint where_len = 0;
 	HashPosition pos;
@@ -636,14 +642,17 @@ PHP_METHOD(yod_model, update) {
 		} else {
 			array_init(params1);
 		}
-		zend_hash_internal_pointer_reset_ex(Z_ARRVAL_P(data), &pos);
-		while (zend_hash_get_current_data_ex(Z_ARRVAL_P(data), (void **)&data1, &pos) == SUCCESS) {
+
+		MAKE_STD_ZVAL(data1);
+		ZVAL_ZVAL(data1, data, 1, 0);
+		zend_hash_internal_pointer_reset_ex(Z_ARRVAL_P(data1), &pos);
+		while (zend_hash_get_current_data_ex(Z_ARRVAL_P(data1), (void **)&ppval, &pos) == SUCCESS) {
 			char *str_key = NULL;
 			uint key_len;
 			zval *value = NULL;
 			ulong num_key;
 
-			if (zend_hash_get_current_key_ex(Z_ARRVAL_P(data), &str_key, &key_len, &num_key, 0, &pos) == HASH_KEY_IS_STRING) {
+			if (zend_hash_get_current_key_ex(Z_ARRVAL_P(data1), &str_key, &key_len, &num_key, 0, &pos) == HASH_KEY_IS_STRING) {
 				if (strncmp(str_key, ":", 1) == 0) {
 					if (where_len) {
 						where_len = spprintf(&where2, 0, "%s AND %s = %s", where1, str_key + 1, str_key);
@@ -654,20 +663,21 @@ PHP_METHOD(yod_model, update) {
 					where1 = where2;
 
 					MAKE_STD_ZVAL(value);
-					ZVAL_ZVAL(value, *data1, 1, 0);
+					ZVAL_ZVAL(value, *ppval, 1, 0);
 					convert_to_string(value);
 					add_assoc_zval_ex(params1, str_key, key_len, value);
 
-					zend_hash_move_forward_ex(Z_ARRVAL_P(data), &pos);
-					zend_hash_del_key_or_index(Z_ARRVAL_P(data), str_key, key_len, 0, HASH_DEL_KEY);
+					zend_hash_move_forward_ex(Z_ARRVAL_P(data1), &pos);
+					zend_hash_del_key_or_index(Z_ARRVAL_P(data1), str_key, key_len, 0, HASH_DEL_KEY);
 					continue;
 				}
 			}
-			zend_hash_move_forward_ex(Z_ARRVAL_P(data), &pos);
+			zend_hash_move_forward_ex(Z_ARRVAL_P(data1), &pos);
 		}
 		
-		yod_database_update(yoddb, data, Z_STRVAL_P(table), Z_STRLEN_P(table), where1, where_len, params1, return_value TSRMLS_CC);
+		yod_database_update(yoddb, data1, Z_STRVAL_P(table), Z_STRLEN_P(table), where1, where_len, params1, return_value TSRMLS_CC);
 		zval_ptr_dtor(&params1);
+		zval_ptr_dtor(&data1);
 		efree(where1);
 		return;
 	}

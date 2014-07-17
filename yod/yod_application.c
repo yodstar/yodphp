@@ -103,7 +103,7 @@ ZEND_END_ARG_INFO()
 */
 static void yod_application_init_config(zval *config TSRMLS_DC) {
 	zval *config1, *develop, *value1, *pzval, **ppconf, **data, **ppval;
-	char *filepath, *filepath1, *filename, *str_key;
+	char *filepath, *filepath1, *filename, *str_key, *runpath;
 	uint filepath_len, entry_len, key_len;
 	ulong num_key;
 	HashPosition pos;
@@ -116,6 +116,9 @@ static void yod_application_init_config(zval *config TSRMLS_DC) {
 	yod_debugf("yod_application_init_config()");
 #endif
 
+	/* runpath */
+	runpath = yod_runpath(TSRMLS_C);
+
 	if (config && Z_TYPE_P(config) == IS_ARRAY) {
 		MAKE_STD_ZVAL(config1);
 		ZVAL_ZVAL(config1, config, 1, 0);
@@ -123,7 +126,7 @@ static void yod_application_init_config(zval *config TSRMLS_DC) {
 		if(config && Z_TYPE_P(config) == IS_STRING) {
 			spprintf(&filepath, 0, "%s", Z_STRVAL_P(config));
 		} else {
-			spprintf(&filepath, 0, "%s/configs/config.php", yod_runpath(TSRMLS_C));
+			spprintf(&filepath, 0, "%s/configs/config.php", runpath);
 		}
 
 		if (VCWD_ACCESS(filepath, F_OK) == 0) {
@@ -174,7 +177,7 @@ static void yod_application_init_config(zval *config TSRMLS_DC) {
 		efree(filepath);
 	}
 
-	spprintf(&filepath1, 0, "%s/config.php", yod_runpath(TSRMLS_C));
+	spprintf(&filepath1, 0, "%s/config.php", runpath);
 	if (VCWD_ACCESS(filepath1, F_OK) == 0) {
 		yod_include(filepath1, &develop, 0 TSRMLS_CC);
 		if (develop && Z_TYPE_P(develop) == IS_ARRAY) {
@@ -636,6 +639,10 @@ static int yod_application_autoload(char *classname, uint classname_len TSRMLS_D
 	zend_class_entry **pce = NULL;
 	char *classfile, *classpath;
 
+#if PHP_YOD_DEBUG
+	yod_debugf("yod_application_autoload(%s)", classname);
+#endif
+
 	classfile = estrndup(classname, classname_len);
 	/* class name with namespace in PHP 5.3 */
 	if (strstr(classname, "\\")) {
@@ -664,10 +671,6 @@ static int yod_application_autoload(char *classname, uint classname_len TSRMLS_D
 		}
 	}
 	efree(classfile);
-
-#if PHP_YOD_DEBUG
-	yod_debugf("yod_application_autoload(%s):%s", classname, classpath);
-#endif
 
 	if (VCWD_ACCESS(classpath, F_OK) == 0) {
 		yod_include(classpath, NULL, 1 TSRMLS_CC);
@@ -837,7 +840,6 @@ PHP_METHOD(yod_application, import) {
 	RETURN_FALSE;
 }
 /* }}} */
-
 
 /** {{{ proto public Yod_Application::plugin($alias, $classext = '.class.php')
 */

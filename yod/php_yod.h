@@ -51,10 +51,10 @@ extern zend_module_entry yod_module_entry;
 #endif
 
 #if PHP_YOD_DEBUG
-#define YOD_VERSION					"1.3.1-dev"
+#define YOD_VERSION					"1.3.2-dev"
 #define YOD_RUNMODE					7
 #else
-#define YOD_VERSION					"1.3.1"
+#define YOD_VERSION					"1.3.2"
 #define YOD_RUNMODE					3
 #endif
 
@@ -124,14 +124,16 @@ int yod_do_exit(long status TSRMLS_DC);
 int yod_register(char *moduel, char *method TSRMLS_DC);
 int yod_include(char *filepath, zval **retval, int dtor TSRMLS_DC);
 
-zval* yod_call_method(zval **object_pp, zend_class_entry *obj_ce, zend_function **fn_proxy, char *function_name, int function_name_len, zval **retval_ptr_ptr, int param_count, zval* arg1, zval* arg2, zval* arg3, zval* arg4 TSRMLS_DC);
+zval* yod_call_method(zval **object_pp, zend_class_entry *obj_ce, zend_function **fn_proxy, char *function_name, int function_name_len, zval **retval_ptr_ptr, int param_count, zval* arg1, zval* arg2, zval* arg3, zval* arg4, zval* arg5 TSRMLS_DC);
 
 #define yod_call_method_with_3_params(obj, obj_ce, fn_proxy, function_name, retval, arg1, arg2, arg3) \
-	yod_call_method(obj, obj_ce, fn_proxy, function_name, sizeof(function_name)-1, retval, 3, arg1, arg2, arg3, NULL TSRMLS_CC)
+	yod_call_method(obj, obj_ce, fn_proxy, function_name, sizeof(function_name)-1, retval, 3, arg1, arg2, arg3, NULL, NULL TSRMLS_CC)
 
 #define yod_call_method_with_4_params(obj, obj_ce, fn_proxy, function_name, retval, arg1, arg2, arg3, arg4) \
-	yod_call_method(obj, obj_ce, fn_proxy, function_name, sizeof(function_name)-1, retval, 4, arg1, arg2, arg3, arg4 TSRMLS_CC)
+	yod_call_method(obj, obj_ce, fn_proxy, function_name, sizeof(function_name)-1, retval, 4, arg1, arg2, arg3, arg4, NULL TSRMLS_CC)
 
+#define yod_call_method_with_5_params(obj, obj_ce, fn_proxy, function_name, retval, arg1, arg2, arg3, arg4, arg5) \
+	yod_call_method(obj, obj_ce, fn_proxy, function_name, sizeof(function_name)-1, retval, 5, arg1, arg2, arg3, arg4, arg5 TSRMLS_CC)
 
 ZEND_BEGIN_MODULE_GLOBALS(yod)
 	double		runtime;
@@ -166,6 +168,8 @@ PHP_RSHUTDOWN_FUNCTION(yod);
 PHP_MINFO_FUNCTION(yod);
 
 extern ZEND_DECLARE_MODULE_GLOBALS(yod);
+
+extern zend_class_entry *yod_ce;
 
 #endif
 /*

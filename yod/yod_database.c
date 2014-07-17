@@ -556,7 +556,9 @@ int yod_database_insert(yod_database_t *object, zval *data, char *table, uint ta
 #endif
 
 	if (!data || Z_TYPE_P(data) != IS_ARRAY || table_len == 0 || !object) {
-		ZVAL_BOOL(retval, 0);
+		if (retval) {
+			ZVAL_BOOL(retval, 0);
+		}
 		return 0;
 	}
 
@@ -599,7 +601,9 @@ int yod_database_insert(yod_database_t *object, zval *data, char *table, uint ta
 
 	if (fields_len == 0 || values_len == 0) {
 		zval_ptr_dtor(&params1);
-		ZVAL_BOOL(retval, 0);
+		if (retval) {
+			ZVAL_BOOL(retval, 0);
+		}
 		return 0;
 	}
 
@@ -638,12 +642,13 @@ int yod_database_insert(yod_database_t *object, zval *data, char *table, uint ta
 		MAKE_STD_ZVAL(affected);
 		ZVAL_BOOL(affected, 1);
 		yod_call_method_with_3_params(&object, Z_OBJCE_P(object), NULL, "execute", &pzval, query, params1, affected);
+		zval_ptr_dtor(&affected);
 		if (retval) {
 			if (pzval) {
 				ZVAL_ZVAL(retval, pzval, 1, 1);
 			} else {
 				ZVAL_BOOL(retval, 0);
-			}	
+			}
 		}
 	}
 	zval_ptr_dtor(&params1);
@@ -679,8 +684,25 @@ int yod_database_update(yod_database_t *object, zval *data, char *table, uint ta
 		uint key_len, name_len;
 		zval *value = NULL;
 		ulong num_key;
+		int key_type;
 
-		if (zend_hash_get_current_key_ex(Z_ARRVAL_P(data), &str_key, &key_len, &num_key, 0, &pos) == HASH_KEY_IS_STRING) {
+		key_type = zend_hash_get_current_key_ex(Z_ARRVAL_P(data), &str_key, &key_len, &num_key, 0, &pos);
+
+		if (key_type == HASH_KEY_IS_STRING &&
+			is_numeric_string(str_key, key_len, NULL, NULL, 0)
+		) {
+			key_type = HASH_KEY_IS_LONG;
+		}
+
+		if (key_type == HASH_KEY_IS_LONG && Z_TYPE_PP(data1) == IS_STRING) {
+			update_len = spprintf(&update1, 0, "%s%s, ", (update_len ? update : ""), Z_STRVAL_PP(data1));
+
+			if (update) {
+				efree(update);
+			}
+			update = update1;
+
+		} else if (key_type == HASH_KEY_IS_STRING) {
 			md5key = yod_database_md5(str_key, key_len TSRMLS_CC);
 			name_len = spprintf(&name, 0, ":%s", md5key);
 			update_len = spprintf(&update1, 0, "%s%s = %s, ", (update_len ? update : ""), str_key, name);
@@ -698,6 +720,7 @@ int yod_database_update(yod_database_t *object, zval *data, char *table, uint ta
 			efree(md5key);
 			efree(name);
 		}
+
 		zend_hash_move_forward_ex(Z_ARRVAL_P(data), &pos);
 	}
 	if (update_len > 0) {
