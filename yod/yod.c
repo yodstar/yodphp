@@ -24,6 +24,7 @@
 #include "php_ini.h"
 #include "main/SAPI.h"
 #include "Zend/zend_interfaces.h"
+#include "Zend/zend_exceptions.h"
 #include "ext/standard/info.h"
 #include "ext/standard/php_string.h"
 
@@ -447,7 +448,7 @@ char *yod_runpath(TSRMLS_D) {
 /** {{{ char *yod_extpath(TSRMLS_D)
 */
 char *yod_extpath(TSRMLS_D) {
-	zval extpath;
+	zval extpath, runpath;
 	uint extpath_len;
 	char *runfile;
 
@@ -456,6 +457,10 @@ char *yod_extpath(TSRMLS_D) {
 			convert_to_string(&extpath);
 			YOD_G(extpath) = estrndup(Z_STRVAL(extpath), Z_STRLEN(extpath));
 			zval_dtor(&extpath);
+		} else if (zend_get_constant(ZEND_STRL("YOD_RUNPATH"), &runpath TSRMLS_CC)) {
+			convert_to_string(&runpath);
+			YOD_G(extpath) = estrndup(Z_STRVAL(runpath), Z_STRLEN(runpath));
+			zval_dtor(&runpath);
 		} else {
 			INIT_ZVAL(extpath);
 			runfile = yod_runfile(TSRMLS_C);
@@ -573,6 +578,7 @@ int yod_include(char *filepath, zval **retval, int dtor TSRMLS_DC) {
 					zval_ptr_dtor(EG(return_value_ptr_ptr));
 				}
 			}
+
 		} zend_end_try();
 
 		YOD_RESTORE_EG_ENVIRON();
@@ -624,6 +630,10 @@ static zend_op_array *yod_init_compile_file(zend_file_handle *file_handle, int t
 				zval_ptr_dtor(EG(return_value_ptr_ptr));
 			}
 		}
+	}
+
+	if (EG(exception)) {
+		zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
 	}
 
 	yod_application_autorun(TSRMLS_C);

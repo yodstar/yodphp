@@ -101,7 +101,7 @@ class HelloController extends Yod_Controller
 {
 	public function indexAction()
 	{
-		$this->assign('content', $this->model('Hello')->content());
+		$this->assign('content', Yod::model('Hello')->content());
 		$this->display('/index/index');
 	}
 

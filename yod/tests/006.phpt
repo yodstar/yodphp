@@ -57,13 +57,13 @@ class IndexController extends Yod_Controller
 {
 	public function indexAction()
 	{
-		$tests = $this->model('Tests');
+		$tests = Yod::model('Tests');
 		$tests->yodphp();
 
-		$tests = $this->model('Tests');
+		$tests = Yod::model('Tests');
 		$tests->show();
 
-		$hello = $this->model('Hello');
+		$hello = Yod::model('Hello');
 		$hello->show();
 	}
 }

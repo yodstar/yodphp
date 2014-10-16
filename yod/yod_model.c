@@ -86,30 +86,6 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(yod_model_lastquery_arginfo, 0, 0, 0)
 ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(yod_model_config_arginfo, 0, 0, 0)
-	ZEND_ARG_INFO(0, name)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(yod_model_import_arginfo, 0, 0, 1)
-	ZEND_ARG_INFO(0, alias)
-	ZEND_ARG_INFO(0, classext)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(yod_model_plugin_arginfo, 0, 0, 1)
-	ZEND_ARG_INFO(0, alias)
-	ZEND_ARG_INFO(0, classext)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(yod_model_model_arginfo, 0, 0, 0)
-	ZEND_ARG_INFO(0, name)
-	ZEND_ARG_INFO(0, config)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(yod_model_dbmodel_arginfo, 0, 0, 0)
-	ZEND_ARG_INFO(0, name)
-	ZEND_ARG_INFO(0, config)
-ZEND_END_ARG_INFO()
 /* }}} */
 
 /** {{{ int yod_model_construct(yod_model_t *object, char *name, uint name_len, zval *config TSRMLS_DC)
@@ -749,107 +725,6 @@ PHP_METHOD(yod_model, lastQuery) {
 }
 /* }}} */
 
-/** {{{ proto public Yod_Model::config($name = null)
-*/
-PHP_METHOD(yod_model, config) {
-	char *name = NULL;
-	uint name_len = 0;
-
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|s", &name, &name_len) == FAILURE) {
-		return;
-	}
-
-#if PHP_YOD_DEBUG
-	yod_debugf("yod_model_config(%s)", name ? name : "");
-#endif
-
-	yod_application_config(name, name_len, return_value TSRMLS_CC);
-}
-/* }}} */
-
-/** {{{ proto public Yod_Model::import($alias, $classext = '.class.php')
-*/
-PHP_METHOD(yod_model, import) {
-	char *alias = NULL, *classext = NULL;
-	uint alias_len = 0, classext_len = 0;
-
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|s", &alias, &alias_len, &classext, &classext_len) == FAILURE) {
-		return;
-	}
-
-#if PHP_YOD_DEBUG
-	yod_debugf("yod_model_import(%s)", alias ? alias : "");
-#endif
-
-	if (yod_application_import(alias, alias_len, classext, classext_len TSRMLS_CC)) {
-		RETURN_TRUE;
-	}
-	RETURN_FALSE;
-}
-/* }}} */
-
-/** {{{ proto public Yod_Model::plugin($alias, $classext = '.class.php')
-*/
-PHP_METHOD(yod_model, plugin) {
-	char *alias = NULL, *classext = NULL;
-	uint alias_len = 0, classext_len = 0;
-
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|s", &alias, &alias_len, &classext, &classext_len) == FAILURE) {
-		return;
-	}
-
-#if PHP_YOD_DEBUG
-	yod_debugf("yod_model_plugin(%s)", alias ? alias : "");
-#endif
-
-	yod_application_plugin(alias, alias_len, classext, classext_len, return_value TSRMLS_CC);
-}
-/* }}} */
-
-/** {{{ proto public Yod_Model::model($name = '', $config = null)
-*/
-PHP_METHOD(yod_model, model) {
-	zval *config = NULL;
-	char *name = NULL;
-	uint name_len = 0;
-
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|sz!", &name, &name_len, &config) == FAILURE) {
-		return;
-	}
-
-#if PHP_YOD_DEBUG
-	yod_debugl(1 TSRMLS_CC);
-	yod_debugf("yod_model_model(%s)", name ? name : "");
-#endif
-
-	if (name_len == 0) {
-		RETURN_ZVAL(getThis(), 1, 0);
-	}
-
-	yod_model_getinstance(name, name_len, config, return_value TSRMLS_CC);
-}
-/* }}} */
-
-/** {{{ proto public Yod_Model::dbmodel($name = '', $config = null)
-*/
-PHP_METHOD(yod_model, dbmodel) {
-	zval *config = NULL;
-	char *name = NULL;
-	uint name_len = 0;
-
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|sz!", &name, &name_len, &config) == FAILURE) {
-		return;
-	}
-
-#if PHP_YOD_DEBUG
-	yod_debugl(1 TSRMLS_CC);
-	yod_debugf("yod_model_dbmodel(%s)", name ? name : "");
-#endif
-
-	yod_dbmodel_getinstance(name, name_len, config, return_value TSRMLS_CC);
-}
-/* }}} */
-
 /** {{{ proto public Yod_Model::__destruct()
 */
 PHP_METHOD(yod_model, __destruct) {
@@ -870,13 +745,7 @@ zend_function_entry yod_model_methods[] = {
 	PHP_ME(yod_model, update,			yod_model_update_arginfo,		ZEND_ACC_PUBLIC)
 	PHP_ME(yod_model, remove,			yod_model_remove_arginfo,		ZEND_ACC_PUBLIC)
 	PHP_ME(yod_model, lastQuery,		yod_model_lastquery_arginfo,	ZEND_ACC_PUBLIC)
-	PHP_ME(yod_model, config,			yod_model_config_arginfo,		ZEND_ACC_PROTECTED)
-	PHP_ME(yod_model, import,			yod_model_import_arginfo,		ZEND_ACC_PROTECTED)
-	PHP_ME(yod_model, plugin,			yod_model_plugin_arginfo,		ZEND_ACC_PROTECTED)
-	PHP_ME(yod_model, model,			yod_model_model_arginfo,		ZEND_ACC_PROTECTED)
-	PHP_ME(yod_model, dbmodel,			yod_model_dbmodel_arginfo,		ZEND_ACC_PROTECTED)
 	PHP_ME(yod_model, __destruct,		NULL,		ZEND_ACC_PUBLIC|ZEND_ACC_DTOR)
-	PHP_MALIAS(yod_model, findAll,		select,		yod_model_select_arginfo,		ZEND_ACC_PUBLIC)
 	{NULL, NULL, NULL}
 };
 /* }}} */

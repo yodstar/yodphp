@@ -367,9 +367,10 @@ int yod_application_config(char *name, uint name_len, zval *result TSRMLS_DC) {
 */
 int yod_application_import(char *alias, uint alias_len, char *classext, uint classext_len TSRMLS_DC) {
 	zval **ppval;
-	char *classfile, *classname, *classpath;
+	char *classfile, *classfile1, *classfile2, *classname, *classpath;
 	size_t classfile_len, classname_len;
 	zend_class_entry **pce = NULL;
+	int depth = 0, depth1 = 0;
 
 	if (!YOD_G(loading)) {
 		yod_loading(TSRMLS_C);
@@ -379,12 +380,13 @@ int yod_application_import(char *alias, uint alias_len, char *classext, uint cla
 		return 0;
 	}
 
-	classfile = estrndup(alias, alias_len);
+	classfile1 = classfile = estrndup(alias, alias_len);
 	classfile_len = 0;
 	
 	while (*classfile != '\0') {
 		if (*classfile == '.' || *classfile == '\\') {
 			*classfile = '/';
+			depth++;
 		}
 		classfile++;
 		classfile_len++;
@@ -393,6 +395,7 @@ int yod_application_import(char *alias, uint alias_len, char *classext, uint cla
 	while (*classfile == '/') {
 		classfile--;
 		classfile_len--;
+		depth--;
 	}
 
 	classfile = classfile - classfile_len;
@@ -400,6 +403,16 @@ int yod_application_import(char *alias, uint alias_len, char *classext, uint cla
 	while (*classfile == '/') {
 		classfile++;
 		classfile_len--;
+		depth--;
+	}
+
+	classfile2 = classfile;
+	while (depth1 < depth) {
+		if (*classfile2 == '/') {
+			depth1++;
+		}
+		*classfile2 = tolower(*classfile2);
+		classfile2++;
 	}
 
 	php_basename(classfile, classfile_len, NULL, 0, &classname, &classname_len TSRMLS_CC);
@@ -413,7 +426,7 @@ int yod_application_import(char *alias, uint alias_len, char *classext, uint cla
 			add_assoc_bool_ex(YOD_G(imports), alias, alias_len + 1, 1);
 			zend_update_static_property(yod_application_ce, ZEND_STRL("_imports"), YOD_G(imports) TSRMLS_CC);
 
-			efree(classfile);
+			efree(classfile1);
 			efree(classname);
 			return 1;
 		}
@@ -440,7 +453,7 @@ int yod_application_import(char *alias, uint alias_len, char *classext, uint cla
 		add_assoc_string_ex(YOD_G(imports), alias, alias_len + 1, classpath, 1);
 		zend_update_static_property(yod_application_ce, ZEND_STRL("_imports"), YOD_G(imports) TSRMLS_CC);
 	}
-	efree(classfile);
+	efree(classfile1);
 
 #if PHP_API_VERSION < 20100412
 	if (zend_lookup_class_ex(classname, classname_len, 0, &pce TSRMLS_CC) == SUCCESS) {
@@ -459,9 +472,10 @@ int yod_application_import(char *alias, uint alias_len, char *classext, uint cla
 */
 int yod_application_plugin(char *alias, uint alias_len, char *classext, uint classext_len, zval *result TSRMLS_DC) {
 	zval *config1, **ppval, *object = NULL;
-	char *aliaspath, *classfile, *classname, *classfile1, *classname1, *classpath, *loweralias;
+	char *aliaspath, *classfile, *classfile1, *classfile2, *classname, *classname1, *classpath, *loweralias;
 	size_t aliaspath_len, classfile_len, classname_len;
 	zend_class_entry **pce = NULL;
+	int depth = 0, depth1 = 0;
 
 	if (!YOD_G(loading)) {
 		yod_loading(TSRMLS_C);
@@ -471,12 +485,13 @@ int yod_application_plugin(char *alias, uint alias_len, char *classext, uint cla
 		return 0;
 	}
 
-	classfile = estrndup(alias, alias_len);
+	classfile1 = classfile = estrndup(alias, alias_len);
 	classfile_len = 0;
 	
 	while (*classfile != '\0') {
 		if (*classfile == '.' || *classfile == '\\') {
 			*classfile = '/';
+			depth++;
 		}
 		classfile++;
 		classfile_len++;
@@ -485,6 +500,7 @@ int yod_application_plugin(char *alias, uint alias_len, char *classext, uint cla
 	while (*classfile == '/') {
 		classfile--;
 		classfile_len--;
+		depth--;
 	}
 
 	classfile = classfile - classfile_len;
@@ -492,6 +508,16 @@ int yod_application_plugin(char *alias, uint alias_len, char *classext, uint cla
 	while (*classfile == '/') {
 		classfile++;
 		classfile_len--;
+		depth--;
+	}
+
+	classfile2 = classfile;
+	while (depth1 < depth) {
+		if (*classfile2 == '/') {
+			depth1++;
+		}
+		*classfile2 = tolower(*classfile2);
+		classfile2++;
 	}
 
 	php_basename(classfile, classfile_len, NULL, 0, &classname, &classname_len TSRMLS_CC);
@@ -501,7 +527,7 @@ int yod_application_plugin(char *alias, uint alias_len, char *classext, uint cla
 			ZVAL_ZVAL(result, *ppval, 1, 0);
 		}
 
-		efree(classfile);
+		efree(classfile1);
 		efree(classname);
 		return 1;
 	}
@@ -514,7 +540,7 @@ int yod_application_plugin(char *alias, uint alias_len, char *classext, uint cla
 		if (classfile_len > 4 && strncasecmp(classfile, "yod/", 4) == 0) {
 			if (strncasecmp(classname, "Yod_", 4)) {
 				classname_len = spprintf(&classname1, 0, "Yod_%s", classname);
-				efree(classname);
+				efree(classfile1);
 				classname = classname1;
 			}
 			if (classext_len) {
@@ -523,13 +549,13 @@ int yod_application_plugin(char *alias, uint alias_len, char *classext, uint cla
 				spprintf(&classpath, 0, "%s/plugins/%s.class.php", yod_extpath(TSRMLS_C), classfile + 4);
 			}
 		} else if (strncasecmp(classname, "Yod_", 4) == 0) {
-			classfile1 = estrndup(classfile, classfile_len - classname_len);
+			classfile2 = estrndup(classfile, classfile_len - classname_len);
 			if (classext_len) {
-				spprintf(&classpath, 0, "%s/plugins/%s%s%s", yod_extpath(TSRMLS_C), classfile1, classname + 4, classext);
+				spprintf(&classpath, 0, "%s/plugins/%s%s%s", yod_extpath(TSRMLS_C), classfile2, classname + 4, classext);
 			} else {
-				spprintf(&classpath, 0, "%s/plugins/%s%s.class.php", yod_extpath(TSRMLS_C), classfile1, classname + 4);
+				spprintf(&classpath, 0, "%s/plugins/%s%s.class.php", yod_extpath(TSRMLS_C), classfile2, classname + 4);
 			}
-			efree(classfile1);
+			efree(classfile2);
 		} else {
 			if (classext_len) {
 				spprintf(&classpath, 0, "%s/plugins/%s%s", yod_runpath(TSRMLS_C), classfile, classext);
@@ -545,7 +571,7 @@ int yod_application_plugin(char *alias, uint alias_len, char *classext, uint cla
 		}
 		efree(classpath);
 	}
-	efree(classfile);
+	efree(classfile1);
 
 #if PHP_API_VERSION < 20100412
 	if (zend_lookup_class_ex(classname, classname_len, 0, &pce TSRMLS_CC) == SUCCESS) {
@@ -637,22 +663,32 @@ void yod_application_autorun(TSRMLS_D) {
 */
 static int yod_application_autoload(char *classname, uint classname_len TSRMLS_DC) {
 	zend_class_entry **pce = NULL;
-	char *classfile, *classpath;
+	char *classfile, *classfile1, *classfile2, *classpath;
+	int depth = 0, depth1 = 0;
 
 #if PHP_YOD_DEBUG
 	yod_debugf("yod_application_autoload(%s)", classname);
 #endif
 
-	classfile = estrndup(classname, classname_len);
+	classfile1 = classfile = estrndup(classname, classname_len);
 	/* class name with namespace in PHP 5.3 */
 	if (strstr(classname, "\\")) {
 		while (*classfile != '\0') {
 			if (*classfile == '\\') {
-				*classfile = '_';
+				*classfile = '/';
+				depth++;
 			}
 			classfile++;
 		}
-		classfile = classfile - classname_len + 1;
+		classfile2 = classfile = classfile - classname_len;
+		while (depth1 < depth) {
+			if (*classfile == '/') {
+				depth1++;
+			}
+			*classfile = tolower(*classfile);
+			classfile++;
+		}
+		classfile = classfile2;
 	}
 
 	if (strncasecmp(classfile, "Yod_", 4) == 0) { /* yodphp extends class */
@@ -670,7 +706,7 @@ static int yod_application_autoload(char *classname, uint classname_len TSRMLS_D
 			spprintf(&classpath, 0, "%s/extends/%s.class.php", yod_runpath(TSRMLS_C), classfile);
 		}
 	}
-	efree(classfile);
+	efree(classfile1);
 
 	if (VCWD_ACCESS(classpath, F_OK) == 0) {
 		yod_include(classpath, NULL, 1 TSRMLS_CC);

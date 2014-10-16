@@ -11,7 +11,7 @@
 
 // yodphp constant
 defined('YOD_RUNTIME') or define('YOD_RUNTIME', microtime(true));
-defined('YOD_VERSION') or define('YOD_VERSION', '1.3.2');
+defined('YOD_VERSION') or define('YOD_VERSION', '1.3.3');
 defined('YOD_FORWARD') or define('YOD_FORWARD', 5);
 defined('YOD_RUNMODE') or define('YOD_RUNMODE', 3);
 defined('YOD_CHARSET') or define('YOD_CHARSET', 'utf-8');
@@ -791,68 +791,6 @@ abstract class Yod_Controller
 	}
 
 	/**
-	 * config
-	 * @access protected
-	 * @param string $name
-	 * @return array
-	 */
-	protected function config($name = null)
-	{
-		return Yod_Application::config($name);
-	}
-
-	/**
-	 * import
-	 * @access protected
-	 * @param string $alias
-	 * @param string $classext
-	 * @return boolean
-	 */
-	protected function import($alias, $classext = '.class.php')
-	{
-		return Yod_Application::import($alias, $classext);
-	}
-
-	/**
-	 * plugin
-	 * @access protected
-	 * @param string $alias
-	 * @param string $classext
-	 * @return mixed
-	 */
-	protected function plugin($alias, $classext = '.class.php')
-	{
-		return Yod_Application::plugin($alias, $classext);
-	}
-
-	/**
-	 * model
-	 * @access protected
-	 * @param string $name
-	 * @param mixed $config
-	 * @return Yod_Model
-	 */
-	protected function model($name = '', $config = '')
-	{
-		if (empty($name)) {
-			$name = $this->_name;
-		}
-		return Yod_Model::getInstance($name, $config);
-	}
-
-	/**
-	 * dbmodel
-	 * @access protected
-	 * @param string $name
-	 * @param mixed $config
-	 * @return Yod_DbModel
-	 */
-	protected function dbmodel($name = '', $config = '')
-	{
-		return Yod_DbModel::getInstance($name, $config);
-	}
-
-	/**
 	 * assign
 	 * @access protected
 	 * @param string $name
@@ -1229,19 +1167,6 @@ class Yod_Model
 	}
 
 	/**
-	 * findAll
-	 * @access public
-	 * @param mixed		$where
-	 * @param array		$params
-	 * @param mixed		$select
-	 * @return mixed
-	 */
-	public function findAll($where = null, $params = array(), $select = '*')
-	{
-		return $this->select($where, $params, $select);
-	}
-
-	/**
 	 * count
 	 * @access public
 	 * @param string	$where
@@ -1326,68 +1251,7 @@ class Yod_Model
 	{
 		return $this->_db->lastQuery();
 	}
-
-	/**
-	 * config
-	 * @access protected
-	 * @param void
-	 * @return array
-	 */
-	protected function config($name = null)
-	{
-		return Yod_Application::config($name);
-	}
 	
-	/**
-	 * import
-	 * @access protected
-	 * @param string $alias
-	 * @param string $classext
-	 * @return boolean
-	 */
-	protected function import($alias, $classext = '.class.php')
-	{
-		return Yod_Application::import($alias, $classext);
-	}
-
-	/**
-	 * plugin
-	 * @access protected
-	 * @param string $alias
-	 * @param string $classext
-	 * @return mixed
-	 */
-	protected function plugin($alias, $classext = '.class.php')
-	{
-		return Yod_Application::plugin($alias, $classext);
-	}
-
-	/**
-	 * model
-	 * @access protected
-	 * @param string $name
-	 * @param mixed $config
-	 * @return Yod_Model
-	 */
-	protected function model($name = '', $config = '')
-	{
-		if (empty($name)) {
-			return $this;
-		}
-		return Yod_Model::getInstance($name, $config);
-	}
-
-	/**
-	 * dbmodel
-	 * @access protected
-	 * @param string $name
-	 * @param mixed $config
-	 * @return Yod_Model
-	 */
-	protected function dbmodel($name = '', $config = null)
-	{
-		return Yod_DbModel::getInstance($name, $config);
-	}
 }
 
 /**
@@ -2579,10 +2443,10 @@ abstract class Yod_Plugin
 }
 
 /**
- * Yod_Global
+ * Yod
  *
  */
-abstract class Yod_G
+abstract class Yod
 {
 	
 	/**

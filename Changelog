@@ -1,4 +1,14 @@
-This file documents changes for Yod Framework release 1.3.2 and earlier.
+This file documents changes for Yod Framework release 1.3.3 and earlier.
+
+version 1.3.3:
+
+  - Remove methods findAll in the class Yod_Model
+  - Remove methods config, import, plugin, model and dbmodel in the class Yod_Model
+  - Remove methods config, import, plugin, model and dbmodel in the class Yod_Controller
+  - Fixed a bug in yod_application_autoload with namespace in PHP
+  - Change the default value of constant YOD_EXTPATH
+  - Modify the method autoload, plugin and import of class Yod_Application
+  - Fixed a bug in yod_init_compile_file (support zend_exception_error)
 
 version 1.3.2:
 
