@@ -176,6 +176,14 @@ SOURCE=.\yod_widget.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\yod_server.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\yod_client.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\yod_model.c
 # End Source File
 # Begin Source File
@@ -193,6 +201,10 @@ SOURCE=.\yod_dbpdo.c
 # Begin Source File
 
 SOURCE=.\yod_plugin.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\yod_base.c
 # End Source File
 # Begin Source File
 

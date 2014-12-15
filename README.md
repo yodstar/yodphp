@@ -45,10 +45,7 @@ make install
 ```
 - index.php	// Application entry
 + public
-+ yodphp
-	+ drivers	// Database Drivers
-	- yodphp.php	// Yodphp entry
-+ app
++ webapp
 	+ actions	// Other actions
 	+ configs
 		- config.php	// Configure 
@@ -69,7 +66,7 @@ make install
 - index.php	// Application index entry
 - hello.php	// Application hello entry
 + public
-+ app
++ webapp
 
 ```
 

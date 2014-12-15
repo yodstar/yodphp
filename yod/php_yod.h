@@ -51,10 +51,10 @@ extern zend_module_entry yod_module_entry;
 #endif
 
 #if PHP_YOD_DEBUG
-#define YOD_VERSION					"1.3.3-dev"
+#define YOD_VERSION					"1.3.4-dev"
 #define YOD_RUNMODE					7
 #else
-#define YOD_VERSION					"1.3.3"
+#define YOD_VERSION					"1.3.4"
 #define YOD_RUNMODE					3
 #endif
 
@@ -62,6 +62,15 @@ extern zend_module_entry yod_module_entry;
 #define YOD_CHARSET					"utf-8"
 #define YOD_VIEWEXT					".php"
 #define YOD_PATHVAR					""
+
+#define YOD_DIR_CONFIG				"configs"
+#define YOD_DIR_CONTROLLER			"controllers"
+#define YOD_DIR_MODEL				"models"
+#define YOD_DIR_VIEW				"views"
+#define YOD_DIR_WIDGET				"widgets"
+#define YOD_DIR_PLUGIN				"plugins"
+#define YOD_DIR_EXTEND				"extends"
+#define YOD_DIR_DRIVER				"drivers"
 
 #define YOD_APP_CNAME				"Yod_Application"
 
@@ -104,6 +113,8 @@ extern zend_module_entry yod_module_entry;
 #define yod_controller_t	zval
 #define yod_action_t		zval
 #define yod_widget_t		zval
+#define yod_server_t		zval
+#define yod_client_t		zval
 #define yod_model_t			zval
 #define yod_dbmodel_t		zval
 #define yod_database_t		zval

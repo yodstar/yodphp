@@ -30,6 +30,7 @@
 #include "yod_application.h"
 #include "yod_request.h"
 #include "yod_controller.h"
+#include "yod_base.h"
 
 #if PHP_YOD_DEBUG
 #include "yod_debug.h"
@@ -328,9 +329,9 @@ int yod_request_route(yod_request_t *object, char *route, uint route_len TSRMLS_
 
 	/* rules */
 	MAKE_STD_ZVAL(rules);
-	yod_application_config(ZEND_STRL("urlrules"), rules TSRMLS_CC);
+	yod_base_config(ZEND_STRL("urlrules"), rules TSRMLS_CC);
 	if (!rules || Z_TYPE_P(rules) != IS_ARRAY) {
-		yod_application_config(ZEND_STRL("url_rules"), rules TSRMLS_CC);
+		yod_base_config(ZEND_STRL("url_rules"), rules TSRMLS_CC);
 	}
 	if (rules && Z_TYPE_P(rules) == IS_ARRAY) {
 		/*
@@ -685,7 +686,7 @@ int yod_request_dispatch(yod_request_t *object TSRMLS_DC) {
 		yod_controller_construct(target, object, NULL, 0 TSRMLS_CC);
 	} else {
 		runpath = yod_runpath(TSRMLS_C);
-		spprintf(&classpath, 0, "%s/controllers/%sController.php", runpath, controller1);
+		spprintf(&classpath, 0, "%s/%s/%sController.php", runpath, YOD_DIR_CONTROLLER, controller1);
 		if (VCWD_ACCESS(classpath, F_OK) == 0) {
 			yod_include(classpath, NULL, 1 TSRMLS_CC);
 #if PHP_API_VERSION < 20100412
@@ -736,7 +737,7 @@ int yod_request_dispatch(yod_request_t *object TSRMLS_DC) {
 				}
 			} else {
 				efree(classpath);
-				spprintf(&classpath, 0, "%s/controllers/ErrorController.php", runpath);
+				spprintf(&classpath, 0, "%s/%s/ErrorController.php", runpath, YOD_DIR_CONTROLLER);
 				if (VCWD_ACCESS(classpath, F_OK) == 0) {
 					yod_include(classpath, NULL, 1 TSRMLS_CC);
 #if PHP_API_VERSION < 20100412

@@ -1,5 +1,5 @@
 --TEST--
-Check for yod class
+Check for yod_base class
 --SKIPIF--
 <?php if (!extension_loaded("yod")) print "skip"; ?>
 --FILE--

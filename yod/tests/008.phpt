@@ -83,7 +83,7 @@ class IndexController extends Yod_Controller
 		$create = $db->create($fields, 'tests', $extend);
 		echo "create:"; var_dump($create);
 
-		$tests = $this->dbmodel('Tests');
+		$tests = Yod::dmodel('Tests');
 
 		$data = array(
 			'title' => 'Tests',
@@ -96,13 +96,13 @@ class IndexController extends Yod_Controller
 		echo "find:"; print_r($tests->find());
 
 		$data['updated'] = 1234567891;
-		$save = $tests->where('id = :id', array(':id' => 1))->save($data);
-		echo "save:"; var_dump($save);
+		$update = $tests->where('id = :id', array(':id' => 1))->update($data);
+		echo "update:"; var_dump($update);
 
 		$find = $tests->where('id = :id', array(':id' => 1))->find();
 		echo "find:"; print_r($find);
 
-		echo "findAll:"; print_r($tests->findAll());
+		echo "select:"; print_r($tests->select());
 
 		echo "count:"; var_dump($tests->count());
 
@@ -129,7 +129,7 @@ find:Array
     [created] => 1234567890
     [status] => 0
 )
-save:int(1)
+update:int(1)
 find:Array
 (
     [id] => 1
@@ -139,7 +139,7 @@ find:Array
     [created] => 1234567890
     [status] => 0
 )
-findAll:Array
+select:Array
 (
     [0] => Array
         (

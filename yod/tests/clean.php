@@ -22,6 +22,11 @@ $tests = array(
 	TESTS_PATH . '/widgets/public',
 	TESTS_PATH . '/widgets/PublicWidget.php',
 	TESTS_PATH . '/widgets',
+	TESTS_PATH . '/server/index.php',
+	TESTS_PATH . '/server/close.php',
+	TESTS_PATH . '/server',
+	TESTS_PATH . '/client/server.php',
+	TESTS_PATH . '/client',
 );
 foreach ($tests as $file) {
 	if (is_file($file)) {

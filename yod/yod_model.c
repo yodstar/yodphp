@@ -28,6 +28,7 @@
 #include "yod_model.h"
 #include "yod_dbmodel.h"
 #include "yod_database.h"
+#include "yod_base.h"
 
 #if PHP_YOD_DEBUG
 #include "yod_debug.h"
@@ -69,8 +70,6 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(yod_model_save_arginfo, 0, 0, 1)
 	ZEND_ARG_INFO(0, data)
-	ZEND_ARG_INFO(0, where)
-	ZEND_ARG_INFO(0, params)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(yod_model_update_arginfo, 0, 0, 1)
@@ -158,7 +157,7 @@ int yod_model_construct(yod_model_t *object, char *name, uint name_len, zval *co
 	if (!config || Z_TYPE_P(config) == IS_NULL || (Z_TYPE_P(config) == IS_STRING && Z_STRLEN_P(config) == 0)) {
 		p_dsn = zend_read_property(Z_OBJCE_P(object), object, ZEND_STRL("_dsn"), 1 TSRMLS_CC);
 		if (p_dsn && Z_TYPE_P(p_dsn) == IS_STRING || Z_STRLEN_P(p_dsn) > 0) {
-			yod_application_config(Z_STRVAL_P(p_dsn), Z_STRLEN_P(p_dsn), config1 TSRMLS_CC);
+			yod_base_config(Z_STRVAL_P(p_dsn), Z_STRLEN_P(p_dsn), config1 TSRMLS_CC);
 		}
 	} else {
 		ZVAL_ZVAL(config1, config, 1, 0);
@@ -221,7 +220,7 @@ int yod_model_getinstance(char *name, uint name_len, zval *config, zval *retval 
 
 	MAKE_STD_ZVAL(object);
 	if (name_len > 0) {
-		spprintf(&classpath, 0, "%s/models/%s.php", yod_runpath(TSRMLS_C), classname);
+		spprintf(&classpath, 0, "%s/%s/%s.php", yod_runpath(TSRMLS_C), YOD_DIR_MODEL, classname);
 		if (VCWD_ACCESS(classpath, F_OK) == 0) {
 			yod_include(classpath, &pzval, 1 TSRMLS_CC);
 #if PHP_API_VERSION < 20100412
@@ -520,22 +519,20 @@ PHP_METHOD(yod_model, count) {
 }
 /* }}} */
 
-/** {{{ proto public Yod_Model::save($data, $where = '', $params = array())
+/** {{{ proto public Yod_Model::save($data)
 */
 PHP_METHOD(yod_model, save) {
 	yod_database_t *yoddb;
 	yod_model_t *object;
-	zval *pzval, *table, *data = NULL, *params = NULL;
-	char *where = NULL;
-	uint where_len = 0;
+	zval *pzval, *table, *data = NULL;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z|sz!", &data, &where, &where_len, &params) == FAILURE) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &data) == FAILURE) {
 		return;
 	}
 
 #if PHP_YOD_DEBUG
 	yod_debugl(1 TSRMLS_CC);
-	yod_debugf("yod_model_save(%s)", where ? where : "");
+	yod_debugf("yod_model_save()");
 #endif
 
 	if (!data || Z_TYPE_P(data) != IS_ARRAY) {
@@ -546,24 +543,22 @@ PHP_METHOD(yod_model, save) {
 
 	yoddb = zend_read_property(Z_OBJCE_P(object), object, ZEND_STRL("_db"), 1 TSRMLS_CC);
 	if (!yoddb || Z_TYPE_P(yoddb) != IS_OBJECT) {
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Call to a member function update() on a non-object");
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Call to a member function insert() on a non-object");
 		RETURN_FALSE;
 	}
 
 	table = zend_read_property(Z_OBJCE_P(object), object, ZEND_STRL("_table"), 1 TSRMLS_CC);
 	if (table) {
 		convert_to_string(table);
-		if (where_len == 0) {
-			if (yod_database_insert(yoddb, data, Z_STRVAL_P(table), Z_STRLEN_P(table), 0, NULL TSRMLS_CC)) {
-				zend_call_method_with_0_params(&yoddb, Z_OBJCE_P(yoddb), NULL, "insertid", &pzval);
-				if (pzval) {
-					RETURN_ZVAL(pzval, 1, 1);
+		if (yod_database_insert(yoddb, data, Z_STRVAL_P(table), Z_STRLEN_P(table), 0, NULL TSRMLS_CC)) {
+			zend_call_method_with_0_params(&yoddb, Z_OBJCE_P(yoddb), NULL, "insertid", &pzval);
+			if (pzval) {
+				if (Z_TYPE_P(pzval) == IS_STRING && strncmp("0", Z_STRVAL_P(pzval), Z_STRLEN_P(pzval)) == 0) {
+					RETURN_TRUE;
 				}
-				RETURN_FALSE;
+				RETURN_ZVAL(pzval, 1, 1);
 			}
-		} else {
-			yod_database_update(yoddb, data, Z_STRVAL_P(table), Z_STRLEN_P(table), where, where_len, params, return_value TSRMLS_CC);
-			return;
+			RETURN_FALSE;
 		}
 	}
 

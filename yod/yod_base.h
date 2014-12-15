@@ -16,15 +16,14 @@
 
 /* $Id$ */
 
-#ifndef PHP_YOD_APPLICATION_H
-#define PHP_YOD_APPLICATION_H
+#ifndef PHP_YOD_BASE_H
+#define PHP_YOD_BASE_H
 
-extern zend_class_entry *yod_application_ce;
+extern zend_class_entry *yod_base_ce;
 
-void yod_application_app(zval *config TSRMLS_DC);
-void yod_application_run(TSRMLS_D);
+int yod_base_config(char *name, uint name_len, zval *result TSRMLS_DC);
 
-PHP_MINIT_FUNCTION(yod_application);
+PHP_MINIT_FUNCTION(yod_base);
 
 #endif
 /*

@@ -1,4 +1,15 @@
-This file documents changes for Yod Framework release 1.3.3 and earlier.
+This file documents changes for Yod Framework release 1.3.4 and earlier.
+
+version 1.3.4:
+
+  - Modify the method save of class Yod_Model and Yod_DbModel
+  - Modify the methods query, execute and connect of class Yod_DbPdo
+  - Modify the method insert of class Yod_Database
+  - Add class Yod_Server and Yod_Client
+  - Remove methods config, import, plugin and autorun in the class Yod_Application
+  - Modify the methods config, import and plugin of class Yod
+  - Change  yod_application_autorun to yod_init_autorun
+  - Add a class Yod_Base (extends by class Yod)
 
 version 1.3.3:
 

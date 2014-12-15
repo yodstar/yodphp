@@ -34,6 +34,7 @@
 #include "yod_widget.h"
 #include "yod_model.h"
 #include "yod_dbmodel.h"
+#include "yod_base.h"
 
 #if PHP_YOD_DEBUG
 #include "yod_debug.h"
@@ -292,14 +293,14 @@ void yod_controller_construct(yod_controller_t *object, yod_request_t *request, 
 	zend_update_property(Z_OBJCE_P(object), object, ZEND_STRL("_request"), request TSRMLS_CC);
 
 	MAKE_STD_ZVAL(tpl_data);
-	yod_application_config(ZEND_STRL("tpldata"), tpl_data TSRMLS_CC);
+	yod_base_config(ZEND_STRL("tpldata"), tpl_data TSRMLS_CC);
 	if (!tpl_data || Z_TYPE_P(tpl_data) != IS_ARRAY) {
-		yod_application_config(ZEND_STRL("tpl_data"), tpl_data TSRMLS_CC);
+		yod_base_config(ZEND_STRL("tpl_data"), tpl_data TSRMLS_CC);
 		if (!tpl_data || Z_TYPE_P(tpl_data) != IS_ARRAY) {
 			array_init(tpl_data);
 		}
 	}
-	spprintf(&tpl_path, 0, "%s/views", yod_runpath(TSRMLS_C));
+	spprintf(&tpl_path, 0, "%s/%s", yod_runpath(TSRMLS_C), YOD_DIR_VIEW);
 	MAKE_STD_ZVAL(tpl_view);
 	array_init(tpl_view);
 	add_assoc_zval_ex(tpl_view, ZEND_STRS("tpl_data"), tpl_data);
@@ -686,7 +687,7 @@ static void yod_controller_widget(yod_controller_t *object, char *route, uint ro
 		}
 		zval_ptr_dtor(&target);
 	} else {
-		spprintf(&classpath, 0, "%s/widgets/%sWidget.php", yod_runpath(TSRMLS_C), widget);
+		spprintf(&classpath, 0, "%s/%s/%sWidget.php", yod_runpath(TSRMLS_C), YOD_DIR_WIDGET, widget);
 		if (VCWD_ACCESS(classpath, F_OK) == 0) {
 			yod_include(classpath, NULL, 1 TSRMLS_CC);
 #if PHP_API_VERSION < 20100412

@@ -27,6 +27,7 @@
 #include "yod_application.h"
 #include "yod_controller.h"
 #include "yod_widget.h"
+#include "yod_base.h"
 
 #if PHP_YOD_DEBUG
 #include "yod_debug.h"
@@ -88,14 +89,14 @@ static void yod_widget_construct(yod_widget_t *object, yod_request_t *request, c
 	zend_update_property(Z_OBJCE_P(object), object, ZEND_STRL("_request"), request TSRMLS_CC);
 
 	MAKE_STD_ZVAL(tpl_data);
-	yod_application_config(ZEND_STRL("tpldata"), tpl_data TSRMLS_CC);
+	yod_base_config(ZEND_STRL("tpldata"), tpl_data TSRMLS_CC);
 	if (!tpl_data || Z_TYPE_P(tpl_data) != IS_ARRAY) {
-		yod_application_config(ZEND_STRL("tpl_data"), tpl_data TSRMLS_CC);
+		yod_base_config(ZEND_STRL("tpl_data"), tpl_data TSRMLS_CC);
 		if (!tpl_data || Z_TYPE_P(tpl_data) != IS_ARRAY) {
 			array_init(tpl_data);
 		}
 	}
-	spprintf(&tpl_path, 0, "%s/widgets", yod_runpath(TSRMLS_C));
+	spprintf(&tpl_path, 0, "%s/%s", yod_runpath(TSRMLS_C), YOD_DIR_WIDGET);
 	MAKE_STD_ZVAL(tpl_view);
 	array_init(tpl_view);
 	add_assoc_zval_ex(tpl_view, ZEND_STRS("tpl_data"), tpl_data);
