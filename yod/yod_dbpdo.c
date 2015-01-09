@@ -178,7 +178,7 @@ static int yod_dbpdo_connect(yod_dbpdo_t *object, zval *config, long linknum, zv
 	yod_database_dbconfig(object, config, linknum, dbconfig TSRMLS_CC);
 	if (Z_TYPE_P(dbconfig) == IS_ARRAY) {
 		if (zend_hash_find(Z_ARRVAL_P(dbconfig), ZEND_STRS("linknum"), (void **)&ppval) == SUCCESS &&
-			Z_TYPE_P(dbconfig) == IS_LONG
+			Z_TYPE_PP(ppval) == IS_LONG
 		) {
 			linknum = Z_LVAL_PP(ppval);
 		} else {
