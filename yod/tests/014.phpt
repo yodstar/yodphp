@@ -72,7 +72,7 @@ defined('YOD_RUNPATH') or define('YOD_RUNPATH', dirname(__FILE__));
 
 $num = 0;
 $errmsg = null;
-$client = new Yod_Client('http://127.0.0.1:8014', 1);
+$client = new Yod_Client('http://127.0.0.1:8014', 'test', 1);
 try{
     $result = $client->test();
 }catch(Exception $e){
@@ -82,7 +82,7 @@ try{
 while ($errmsg) {
     usleep(1000);
     $errmsg = null;
-    $client = new Yod_Client('http://127.0.0.1:8014', 1);
+    $client = new Yod_Client('http://127.0.0.1:8014', 'test', 1);
     try{
         $result = $client->test();
         break;
@@ -107,6 +107,7 @@ Yod_Client Object
             [name] => Yod_Server
         )
 
+    [_handle:protected] => test
     [_timeout:protected] => 1
     [_debug:protected] => 
 )

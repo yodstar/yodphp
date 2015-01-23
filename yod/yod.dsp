@@ -208,6 +208,10 @@ SOURCE=.\yod_base.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\crypt\screw.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\yod_debug.c
 # End Source File
 # End Group

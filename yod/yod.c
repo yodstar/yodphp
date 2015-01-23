@@ -54,6 +54,12 @@
 #include "yod_plugin.h"
 #include "yod_base.h"
 
+#if PHP_YOD_CRYPT
+#if PHP_YOD_CRYPT_TYPE == screw
+#include "crypt/screw.h"
+#endif
+#endif
+
 #if PHP_YOD_DEBUG
 #include "yod_debug.h"
 #endif
@@ -197,7 +203,7 @@ int yod_register(char *moduel, char *method TSRMLS_DC) {
 
 	MAKE_STD_ZVAL(param1);
 	array_init(param1);
-	add_next_index_string(param1, YOD_APP_CNAME, 1);
+	add_next_index_string(param1, YOD_BASE_CNAME, 1);
 	add_next_index_string(param1, method, 1);
 
 	MAKE_STD_ZVAL(function);
@@ -395,6 +401,7 @@ char *yod_runpath(TSRMLS_D) {
 			convert_to_string(&runpath);
 			YOD_G(runpath) = estrndup(Z_STRVAL(runpath), Z_STRLEN(runpath));
 			zval_dtor(&runpath);
+			YOD_G(autorun) = 1;
 		} else {
 			INIT_ZVAL(runpath);
 			runfile = yod_runfile(TSRMLS_C);
@@ -473,7 +480,6 @@ char *yod_logpath(TSRMLS_D) {
 /** {{{ void yod_init_config(TSRMLS_D)
 */
 void yod_init_config(TSRMLS_D) {
-	zval runpath;
 	zval *config, *config1, *value1, *pzval;
 	zval **ppconf, **data, **ppval;
 	char *filepath, *filepath1, *filename, *str_key;
@@ -492,16 +498,6 @@ void yod_init_config(TSRMLS_D) {
 #if PHP_YOD_DEBUG
 	yod_debugf("yod_init_config()");
 #endif
-
-	/* runpath */
-	if (!zend_get_constant(ZEND_STRL("YOD_RUNPATH"), &runpath TSRMLS_CC)) {
-		return;
-	}
-	if (!YOD_G(runpath)) {
-		convert_to_string(&runpath);
-		YOD_G(runpath) = estrndup(Z_STRVAL(runpath), Z_STRLEN(runpath));
-	}
-	zval_dtor(&runpath);
 
 	/* config */
 	spprintf(&filepath, 0, "%s/%s/config.php", YOD_G(runpath), YOD_DIR_CONFIG);
@@ -611,43 +607,38 @@ void yod_init_config(TSRMLS_D) {
 }
 /* }}} */
 
-/** {{{ void yod_init_autorun(TSRMLS_D)
+/** {{{ void yod_init_register(TSRMLS_D)
 */
-void yod_init_autorun(TSRMLS_D) {
-	zval runpath;
+void yod_init_register(TSRMLS_D) {
 
-	if (YOD_G(running) || YOD_G(exited) || (yod_runmode(TSRMLS_C) & 1) == 0) {
+#if PHP_YOD_DEBUG
+	yod_debugf("yod_init_register()");
+#endif
+
+	/* errorlog */
+	if ((yod_runmode(TSRMLS_C) & 2) && YOD_G(logpath)) {
+		yod_register("set_error_handler", "errorlog" TSRMLS_CC);
+	}
+
+	/* autoload */
+	if (YOD_G(autorun)) {
+		yod_register("spl_autoload_register", "autoload" TSRMLS_CC);
+	}
+	
+}
+
+/** {{{ void yod_init_startup(TSRMLS_D)
+*/
+void yod_init_startup(TSRMLS_D) {
+	if (YOD_G(startup)) {
 		return;
 	}
 
 #if PHP_YOD_DEBUG
-	yod_debugf("yod_init_autorun()");
+	yod_debugf("yod_init_startup()");
 #endif
 
-	if (zend_get_constant(ZEND_STRL("YOD_RUNPATH"), &runpath TSRMLS_CC)) {
-		SG(headers_sent) = 0;
-
-		yod_loading(TSRMLS_C);
-		yod_application_app(NULL TSRMLS_CC);
-		yod_application_run(TSRMLS_C);
-
-		if (!SG(headers_sent)) {
-			sapi_send_headers(TSRMLS_C);
-		}
-
-		zval_dtor(&runpath);
-	}
-}
-/* }}} */
-
-/** {{{ void yod_loading(TSRMLS_D)
-*/
-void yod_loading(TSRMLS_D) {
-	if (YOD_G(loading)) {
-		return;
-	}
-	YOD_G(loading) = 1;
-
+	/* startup */
 	yod_runtime(TSRMLS_C);
 	yod_forward(TSRMLS_C);
 	yod_runmode(TSRMLS_C);
@@ -657,7 +648,35 @@ void yod_loading(TSRMLS_D) {
 	yod_runpath(TSRMLS_C);
 	yod_extpath(TSRMLS_C);
 	yod_logpath(TSRMLS_C);
+
+	yod_init_register(TSRMLS_C);
 	yod_init_config(TSRMLS_C);
+
+	YOD_G(startup) = 1;
+}
+/* }}} */
+
+/** {{{ void yod_init_autorun(TSRMLS_D)
+*/
+void yod_init_autorun(TSRMLS_D) {
+	if (YOD_G(running) || YOD_G(exited) || (yod_runmode(TSRMLS_C) & 1) == 0) {
+		return;
+	}
+
+#if PHP_YOD_DEBUG
+	yod_debugf("yod_init_autorun()");
+#endif
+
+	if (YOD_G(autorun)) {
+		SG(headers_sent) = 0;
+
+		yod_application_app(NULL TSRMLS_CC);
+		yod_application_run(TSRMLS_C);
+
+		if (!SG(headers_sent)) {
+			sapi_send_headers(TSRMLS_C);
+		}
+	}
 }
 /* }}} */
 
@@ -729,8 +748,6 @@ int yod_include(char *filepath, zval **retval, int dtor TSRMLS_DC) {
 }
 /* }}} */
 
-zend_op_array *(*yod_orig_compile_file)(zend_file_handle *file_handle, int type TSRMLS_DC);
-
 /** {{{ zend_op_array *yod_init_compile_file(zend_file_handle *file_handle, int type TSRMLS_DC)
 */
 static zend_op_array *yod_init_compile_file(zend_file_handle *file_handle, int type TSRMLS_DC) /* {{{ */
@@ -740,12 +757,12 @@ static zend_op_array *yod_init_compile_file(zend_file_handle *file_handle, int t
 	char *runfile;
 	
 	if (!file_handle || !file_handle->filename) {
-		return yod_orig_compile_file(file_handle, type TSRMLS_CC);
+		return yod_zend_compile_file(file_handle, type TSRMLS_CC);
 	}
 
 	runfile = yod_runfile(TSRMLS_C);
 	if (strcmp(file_handle->filename, runfile)) {
-		return yod_orig_compile_file(file_handle, type TSRMLS_CC);
+		return yod_zend_compile_file(file_handle, type TSRMLS_CC);
 	}
 
 	zend_compile_file = yod_orig_compile_file;
@@ -780,8 +797,12 @@ static zend_op_array *yod_init_compile_file(zend_file_handle *file_handle, int t
 #endif
 	}
 
-	yod_init_config(TSRMLS_C);
+	yod_init_startup(TSRMLS_C);
 	yod_init_autorun(TSRMLS_C);
+
+	if (!YOD_G(autorun)) {
+		zend_compile_file = yod_zend_compile_file;
+	}
 
 	return NULL;
 }
@@ -815,7 +836,8 @@ PHP_GINIT_FUNCTION(yod)
 	yod_globals->plugins	= NULL;
 
 	yod_globals->exited		= 0;
-	yod_globals->loading	= 0;
+	yod_globals->startup	= 0;
+	yod_globals->autorun	= 0;
 	yod_globals->runfile	= NULL;
 
 #if PHP_YOD_DEBUG
@@ -877,8 +899,20 @@ PHP_RINIT_FUNCTION(yod)
 {
 	struct timeval tp = {0};
 
-	yod_orig_compile_file = zend_compile_file;
+#if PHP_API_VERSION > 20041225
+	CG(compiler_options) |= ZEND_COMPILE_EXTENDED_INFO;
+#else
+	GC(extended_info) = 1;
+#endif
+
+	yod_zend_compile_file = zend_compile_file;
 	zend_compile_file = yod_init_compile_file;
+
+#if PHP_YOD_CRYPT
+	yod_orig_compile_file = yod_crypt_compile_file;
+#else
+	yod_orig_compile_file = yod_zend_compile_file;
+#endif
 
 	/* runtime */
 	if (gettimeofday(&tp, NULL)) {
@@ -908,7 +942,8 @@ PHP_RINIT_FUNCTION(yod)
 	array_init(YOD_G(plugins));
 
 	YOD_G(exited)			= 0;
-	YOD_G(loading)			= 0;
+	YOD_G(startup)			= 0;
+	YOD_G(autorun)			= 0;
 	YOD_G(runfile)			= NULL;
 
 #if PHP_YOD_DEBUG
@@ -924,8 +959,14 @@ PHP_RINIT_FUNCTION(yod)
 */
 PHP_RSHUTDOWN_FUNCTION(yod)
 {
-	if (zend_compile_file == yod_init_compile_file) {
-		zend_compile_file = yod_orig_compile_file;
+#if PHP_API_VERSION > 20041225
+	CG(compiler_options) |= ZEND_COMPILE_EXTENDED_INFO;
+#else
+	GC(extended_info) = 1;
+#endif
+
+	if (zend_compile_file != yod_zend_compile_file) {
+		zend_compile_file = yod_zend_compile_file;
 	}
 
 	if (YOD_G(charset)) {

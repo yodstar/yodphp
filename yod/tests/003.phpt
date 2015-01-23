@@ -102,4 +102,3 @@ TestsController Object
 )
 Yod PHP Framework
 Hello World!
-HTTP/1.0 404 Not Found

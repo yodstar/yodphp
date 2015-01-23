@@ -1,16 +1,23 @@
 PHP_ARG_ENABLE(yod, whether to enable yod support,
-[  --enable-yod           Enable yod support])
+[  --enable-yod            Enable yod support])
 
-AC_ARG_ENABLE(yod-debug,
-[  --enable-yod-debug     Enable yod debug mode default=no],
-[PHP_YOD_DEBUG=$enableval],
-[PHP_YOD_DEBUG="no"])  
+PHP_ARG_WITH(yod-crypt, for yod crypt support,
+[  --with-yod-crypt        Include crypt support [[default=no]]], no, no)
+
+PHP_ARG_ENABLE(yod-debug, whether to enable yod debug mode,
+[  --enable-yod-debug      Enable yod debug mode [[default=no]]], no, no)
 
 if test "$PHP_YOD" != "no"; then
-	if test "$PHP_YOD_DEBUG" = "yes"; then
-		AC_DEFINE(PHP_YOD_DEBUG,1,[define to 1 if you want to change the POST/GET by php script])
+	if test "$PHP_YOD_CRYPT" != "no"; then
+		AC_DEFINE(PHP_YOD_CRYPT, 1, [define to 1 if you want to running in crypt mode])
 	else
-		AC_DEFINE(PHP_YOD_DEBUG,0,[define to 1 if you want to change the POST/GET by php script])
+		AC_DEFINE(PHP_YOD_CRYPT, 0, [define to 1 if you want to running in crypt mode])
+	fi
+
+	if test "$PHP_YOD_DEBUG" = "yes"; then
+		AC_DEFINE(PHP_YOD_DEBUG, 1, [define to 1 if you want to running in debug mode])
+	else
+		AC_DEFINE(PHP_YOD_DEBUG, 0, [define to 1 if you want to running in debug mode])
 	fi
 
 	AC_MSG_CHECKING([PHP version])
@@ -42,6 +49,16 @@ if test "$PHP_YOD" != "no"; then
 	fi
 
 	ext_files="yod.c yod_application.c yod_request.c yod_controller.c yod_action.c yod_widget.c yod_server.c yod_client.c yod_model.c yod_dbmodel.c yod_database.c yod_dbpdo.c yod_plugin.c yod_base.c"
+
+	if test "$PHP_YOD_CRYPT" != "no"; then
+		if test "$PHP_YOD_CRYPT" = "yes"; then
+			ext_files=$ext_files" crypt/screw.c"
+			PHP_YOD_CRYPT_TYPE = "screw"
+		else
+			ext_files=$ext_files" crypt/"$PHP_YOD_CRYPT".c"
+			PHP_YOD_CRYPT_TYPE = "$PHP_YOD_CRYPT"
+		fi
+	fi
 
 	if test "$PHP_YOD_DEBUG" = "yes"; then
 		ext_files=$ext_files" yod_debug.c"

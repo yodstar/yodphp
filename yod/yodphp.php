@@ -11,7 +11,7 @@
 
 // yodphp constant
 defined('YOD_RUNTIME') or define('YOD_RUNTIME', microtime(true));
-defined('YOD_VERSION') or define('YOD_VERSION', '1.3.4');
+defined('YOD_VERSION') or define('YOD_VERSION', '1.3.5');
 defined('YOD_FORWARD') or define('YOD_FORWARD', 5);
 defined('YOD_RUNMODE') or define('YOD_RUNMODE', 3);
 defined('YOD_CHARSET') or define('YOD_CHARSET', 'utf-8');
@@ -20,8 +20,9 @@ defined('YOD_PATHVAR') or define('YOD_PATHVAR', '');
 defined('YOD_EXTPATH') or define('YOD_EXTPATH', dirname(__FILE__));
 
 // yodphp autorun
-Yod_Application::autorun();
 Yod_Base::init_config();
+Yod_Base::init_register();
+Yod_Base::init_autorun();
 
 /**
  * Yod_Application
@@ -47,14 +48,6 @@ final class Yod_Application
 		}
 
 		defined('YOD_RUNPATH') or define('YOD_RUNPATH', dirname(__FILE__));
-		
-		// errorlog
-		if ((YOD_RUNMODE & 2) && defined('YOD_LOGPATH')) {
-			set_error_handler(array('Yod_Application', 'errorlog'));
-		}
-
-		// autoload
-		spl_autoload_register(array('Yod_Application', 'autoload'));
 
 		// request
 		$this->_request = new Yod_Request();
@@ -92,126 +85,6 @@ final class Yod_Application
 			return self::$_app;
 		}
 		return new self($config);
-	}
-
-	/**
-	 * autorun
-	 * @access public
-	 * @param void
-	 * @return void
-	 */
-	public static function autorun()
-	{
-		if (self::$_running) {
-			return;
-		}
-		if (YOD_RUNMODE & 1) {
-			if (defined('YOD_RUNPATH')) {
-				if (is_file($_SERVER['SCRIPT_FILENAME'])) {
-					include $_SERVER['SCRIPT_FILENAME'];
-				}
-				if (isset($config)) {
-					$GLOBALS['config'] = $config;
-				}
-				Yod_Application::app()->run();
-				exit;
-			} else {
-				define('YOD_RUNPATH', dirname(__FILE__));
-			}
-		}
-	}
-
-	/**
-	 * autoload
-	 * @access public
-	 * @param string $classname
-	 * @return boolean
-	 */
-	public static function autoload($classname)
-	{
-		$classfile = $classname;
-		// class name with namespace in PHP 5.3
-		if (strpos($classname, '\\') !== false) {
-			$classfile = str_replace('\\', '_', $classname);
-		}
-
-		if (strncasecmp($classfile, 'Yod_', 4) == 0) { // yodphp extends class
-			if (strncasecmp($classfile, 'Yod_Db', 6) == 0) {
-				$directory = '/drivers/';
-			} else {
-				$directory = '/extends/';
-			}
-			$classpath = YOD_EXTPATH . $directory . substr($classfile, 4) . '.class.php';
-		} else {
-			if (strncasecmp(substr($classname, -10), 'Controller', 10) == 0) {
-				$directory = '/controllers/';
-			} elseif (strncasecmp(substr($classname, -5), 'Model', 5) == 0) {
-				$directory = '/models/';
-			} else {
-				$directory = '/extends/';
-				$classfile = $classfile . '.class';
-			}
-			$classpath = YOD_RUNPATH . $directory . $classfile . '.php';
-		}
-
-		if (is_file($classpath)) include $classpath;
-
-		return class_exists($classname, false) || interface_exists($classname, false);
-	}
-
-	/**
-	 * errorlog
-	 * @access public
-	 * @param int $errno
-	 * @param string $errstr
-	 * @param string $errfile
-	 * @param int $errline
-	 * @param array $errcontext
-	 * @return boolean
-	 */
-	public static function errorlog($errno, $errstr, $errfile = '', $errline = 0, $errcontext = array())
-	{
-		switch ($errno) {
-		 	case E_ERROR:
-		 	case E_CORE_ERROR:
-		 	case E_COMPILE_ERROR:
-		 	case E_USER_ERROR:
-		 	case E_RECOVERABLE_ERROR:
-		 		$errtype = 'Error';
-		 		break;
-		 	case E_WARNING:
-		 	case E_CORE_WARNING:
-		 	case E_COMPILE_WARNING:
-		 	case E_USER_WARNING:
-		 		$errtype = 'Warning';
-		 		break;
-		 	case E_PARSE:
-		 		$errtype = 'Parse';
-		 		break;
-		 	case E_NOTICE:
-		 	case E_USER_NOTICE:
-		 		$errtype = 'Notice';
-		 		break;
-		 	case E_STRICT:
-		 		$errtype = 'Strict';
-		 		break;
-		 	case E_DEPRECATED:
-		 	case E_USER_DEPRECATED:
-		 		$errtype = 'Deprecated';
-		 		break;
-		 	default:
-		 		$errtype = 'Unknown';
-		 		break;
-		}
-		$logtime = date('Y-m-d H:i:s');
-		$logusec = (microtime(true) - time()) * 1000000;
-		$errfile = empty($errfile) ? 'Unknown' : $errfile;
-		$logdata = sprintf("[%s %06d] %s: %s in %s(%d)\n", $logtime, $logusec, $errtype, $errstr, $errfile, $errline);
-		$logfile = YOD_LOGPATH . '/errors.log';
-		is_dir(YOD_LOGPATH) or mkdir(YOD_LOGPATH);
-		file_put_contents($logfile, $logdata, FILE_APPEND);
-
-		return false;
 	}
 
 	/**
@@ -885,13 +758,14 @@ abstract class Yod_Widget extends Yod_Controller
 class Yod_Server
 {
 	protected $_handle = null;
+
 	/**
 	 * __construct
 	 * @access public
 	 * @param mixed $handle
 	 * @return void
 	 */
-	public function __construct($handle)
+	public function __construct($handle = null)
 	{
 		$this->_handle = $handle;
 	}
@@ -903,17 +777,39 @@ class Yod_Server
 	 */
 	public function handle()
 	{
+
 		$input = file_get_contents('php://input');
 		$input = $this->decrypt($input);
+		$request = json_decode($input, true);
+
+		if (empty($request)) {
+			return;
+		}
+
 		$result = array('server' => 'Yod_Server', 'status' => 0, 'data' => null, 'extra' => null);
-		if ($input2 = json_decode($input, true)) {
+		if (!empty($request['handle'])) {
+			$classname = ucfirst(strtolower($request['handle'])) . 'Service';
+			if (!class_exists($classname)) {
+				$classfile = YOD_RUNPATH . '/service/' . $classname . '.php';
+				if (is_file($classfile)) {
+					require $classfile;
+				}
+			}
+			if (class_exists($classname)) {
+				$this->_handle = new $classname();
+			} else {
+				$result['data'] = sprintf('Class \'%s\' not found', $classname);
+			}
+		}
+
+		if (empty($result['data'])) {
 			if (is_object($this->_handle)) {
-				if (empty($input2['method'])) {
-					$result['data'] = sprintf('Call to undefined method');
+				if (empty($request['method'])) {
+					$result['data'] = 'Call to undefined method';
 				} else {
-					$extra = isset($input2['extra']) ? $input2['extra'] : null;
-					$method = isset($input2['method']) ? $input2['method'] : null;
-					$params = isset($input2['params']) ? $input2['params'] : null;
+					$extra = isset($request['extra']) ? $request['extra'] : null;
+					$method = isset($request['method']) ? $request['method'] : null;
+					$params = isset($request['params']) ? $request['params'] : null;
 					if (method_exists($this->_handle, $method)) {
 						if (is_array($extra)) {
 							foreach ($extra as $name => $value) {
@@ -928,13 +824,13 @@ class Yod_Server
 					}
 				}
 			} else {
-				$result['data'] = sprintf('Call to undefined service');
+				$result['data'] = 'Call to undefined handle';
 			}
-			
-			$output = @json_encode($result);
-			$output = $this->encrypt($output);
-			file_put_contents('php://output', $output);
 		}
+		
+		$output = @json_encode($result);
+		$output = $this->encrypt($output);
+		file_put_contents('php://output', $output);
 	}
 
 	/**
@@ -971,10 +867,10 @@ class Yod_Client
 	protected $_params = null;
 	protected $_result = null;
 	protected $_extra = array();
+	protected $_handle = null;
 	protected $_timeout = 5;
 
 	protected $_debug = false;
-
 	/**
 	 * __construct
 	 * @access public
@@ -982,9 +878,10 @@ class Yod_Client
 	 * @param string $key
 	 * @return void
 	 */
-	public function __construct($url, $timeout = 5)
+	public function __construct($url, $handle = null, $timeout = 5)
 	{
 		$this->_url = $url;
+		$this->_handle = $handle;
 		$this->_timeout = $timeout;
 	}
 
@@ -1043,7 +940,8 @@ class Yod_Client
 	public function __call($method, $params)
 	{
 		$post = array(
-			'client' => 'Yod_Client', 
+			'client' => 'Yod_Client',
+			'handle' => $this->_handle,
 			'method' => $method,
 			'params' => $params,
 			'extra' => $this->_extra,
@@ -2018,13 +1916,15 @@ abstract class Yod_Database
 				if (is_numeric($key)) {
 					$update[] = $value;
 				} else {
-					$name = ':'. md5($key);
-					$update[] = $key.' = '.$name;
-					$params1[$name] = $value;
+					$update[] = $key.' = ?';
+					$params1[] = $value;
 				}
 			}
 		}
-		$params1 = array_merge($params1, $params);
+		foreach ($params as $key => $value) {
+			$params1[] = $value;
+			$where = str_replace($key, '?', $where);
+		}
 		$query = 'UPDATE ' . $this->_prefix . $table . ' SET ' .implode(', ', $update) . (empty($where) ? '' : ' WHERE ' . $where);
 		return $this->execute($query, $params1, true);
 	}
@@ -2040,8 +1940,12 @@ abstract class Yod_Database
 	public function delete($table, $where = null, $params = array())
 	{
 		if (empty($table)) return false;
+		$params1 = array();
+		foreach ($params as $key => $value) {
+			$where = str_replace($key, '?', $where);
+		}
 		$query = 'DELETE FROM ' . $this->_prefix . $table . (empty($where) ? '' : ' WHERE ' . $where);
-		return $this->execute($query, $params, true);
+		return $this->execute($query, $params1, true);
 	}
 
 	/**
@@ -2065,8 +1969,13 @@ abstract class Yod_Database
 			}
 			$select = implode(', ', $select);
 		}
+		$params1 = array();
+		foreach ($params as $key => $value) {
+			$where = str_replace($key, '?', $where);
+			$params1[] = $value;
+		}
 		$query = 'SELECT ' . (empty($select) ? '*' : $select) . ' FROM ' . $this->_prefix . $table . (empty($where) ? '' : ' WHERE ' . $where) . (empty($extend) ? '' : ' ') . $extend;
-		return $this->query($query, $params);
+		return $this->query($query, $params1);
 	}
 
 	/**
@@ -2588,64 +2497,6 @@ abstract class Yod_Base
 	}
 
 	/**
-	 * init_config
-	 * @access public
-	 * @param string $config
-	 * @return mixed
-	 */
-	public static function init_config()
-	{
-		// config
-		$config = YOD_RUNPATH . '/configs/config.php';
-		if (is_file($config)) {
-			self::$_config = include($config);
-		} else {
-			self::$_config = array();
-			$scandir = dirname($config);
-			if (is_dir($scandir) && ($handle = opendir($scandir))) {
-				while (($file = readdir($handle)) != false) {
-					if (substr($file, -11) == '.config.php') {
-						$key = substr($file, 0, -11);
-						$value = include($scandir .'/'. $file);
-						if (is_array($value)) {
-							if ($key == 'base') {
-								self::$_config = array_merge(self::$_config, $value);
-							} elseif (isset(self::$_config[$key])){
-								if (is_array(self::$_config[$key])) {
-									$value = array_merge(self::$_config[$key], $value);
-								}
-							}
-							self::$_config[$key] = $value;
-						}
-					}
-				}
-				closedir($handle);
-			}
-		}
-		if (is_file(YOD_RUNPATH . '/config.php')) {
-			$develop = include YOD_RUNPATH . '/config.php';
-			if (is_array($develop)) {
-				foreach ($develop as $key => $value) {
-					if (isset(self::$_config[$key]) && is_array(self::$_config[$key]) && is_array($value)) {
-						self::$_config[$key] = array_merge(self::$_config[$key], $value);
-					} else {
-						self::$_config[$key] = $develop[$key];
-					}
-				}
-			}
-		}
-		if (isset($GLOBALS['config']) && is_array($GLOBALS['config'])) {
-			foreach ($GLOBALS['config'] as $key => $value) {
-				if (isset(self::$_config[$key]) && is_array(self::$_config[$key]) && is_array($value)) {
-					self::$_config[$key] = array_merge(self::$_config[$key], $value);
-				} else {
-					self::$_config[$key] = $GLOBALS['config'][$key];
-				}
-			}
-		}
-	}
-
-	/**
 	 * config
 	 * @access public
 	 * @param string $name
@@ -2773,6 +2624,193 @@ abstract class Yod_Base
 	public static function db($config = 'db_dsn')
 	{
 		return Yod_Database::getInstance($config);
+	}
+
+	/**
+	 * autoload
+	 * @access public
+	 * @param string $classname
+	 * @return boolean
+	 */
+	public static function autoload($classname)
+	{
+		$classfile = $classname;
+		// class name with namespace in PHP 5.3
+		if (strpos($classname, '\\') !== false) {
+			$classfile = str_replace('\\', '_', $classname);
+		}
+
+		if (strncasecmp($classfile, 'Yod_', 4) == 0) { // yodphp extends class
+			if (strncasecmp($classfile, 'Yod_Db', 6) == 0) {
+				$directory = '/drivers/';
+			} else {
+				$directory = '/extends/';
+			}
+			$classpath = YOD_EXTPATH . $directory . substr($classfile, 4) . '.class.php';
+		} else {
+			if (strncasecmp(substr($classname, -10), 'Controller', 10) == 0) {
+				$directory = '/controllers/';
+			} elseif (strncasecmp(substr($classname, -5), 'Model', 5) == 0) {
+				$directory = '/models/';
+			} else {
+				$directory = '/extends/';
+				$classfile = $classfile . '.class';
+			}
+			$classpath = YOD_RUNPATH . $directory . $classfile . '.php';
+		}
+
+		if (is_file($classpath)) include $classpath;
+
+		return class_exists($classname, false) || interface_exists($classname, false);
+	}
+
+	/**
+	 * errorlog
+	 * @access public
+	 * @param int $errno
+	 * @param string $errstr
+	 * @param string $errfile
+	 * @param int $errline
+	 * @param array $errcontext
+	 * @return boolean
+	 */
+	public static function errorlog($errno, $errstr, $errfile = '', $errline = 0, $errcontext = array())
+	{
+		switch ($errno) {
+		 	case E_ERROR:
+		 	case E_CORE_ERROR:
+		 	case E_COMPILE_ERROR:
+		 	case E_USER_ERROR:
+		 	case E_RECOVERABLE_ERROR:
+		 		$errtype = 'Error';
+		 		break;
+		 	case E_WARNING:
+		 	case E_CORE_WARNING:
+		 	case E_COMPILE_WARNING:
+		 	case E_USER_WARNING:
+		 		$errtype = 'Warning';
+		 		break;
+		 	case E_PARSE:
+		 		$errtype = 'Parse';
+		 		break;
+		 	case E_NOTICE:
+		 	case E_USER_NOTICE:
+		 		$errtype = 'Notice';
+		 		break;
+		 	case E_STRICT:
+		 		$errtype = 'Strict';
+		 		break;
+		 	case E_DEPRECATED:
+		 	case E_USER_DEPRECATED:
+		 		$errtype = 'Deprecated';
+		 		break;
+		 	default:
+		 		$errtype = 'Unknown';
+		 		break;
+		}
+		$logtime = date('Y-m-d H:i:s');
+		$logusec = (microtime(true) - time()) * 1000000;
+		$errfile = empty($errfile) ? 'Unknown' : $errfile;
+		$logdata = sprintf("[%s %06d] %s: %s in %s(%d)\n", $logtime, $logusec, $errtype, $errstr, $errfile, $errline);
+		$logfile = YOD_LOGPATH . '/errors.log';
+		is_dir(YOD_LOGPATH) or mkdir(YOD_LOGPATH);
+		file_put_contents($logfile, $logdata, FILE_APPEND);
+
+		return false;
+	}
+
+	/**
+	 * init_config
+	 * @access public
+	 * @param string $config
+	 * @return mixed
+	 */
+	public static function init_config()
+	{
+		// config
+		$config = YOD_RUNPATH . '/configs/config.php';
+		if (is_file($config)) {
+			self::$_config = include($config);
+		} else {
+			self::$_config = array();
+			$scandir = dirname($config);
+			if (is_dir($scandir) && ($handle = opendir($scandir))) {
+				while (($file = readdir($handle)) != false) {
+					if (substr($file, -11) == '.config.php') {
+						$key = substr($file, 0, -11);
+						$value = include($scandir .'/'. $file);
+						if (is_array($value)) {
+							if ($key == 'base') {
+								self::$_config = array_merge(self::$_config, $value);
+							} elseif (isset(self::$_config[$key])){
+								if (is_array(self::$_config[$key])) {
+									$value = array_merge(self::$_config[$key], $value);
+								}
+							}
+							self::$_config[$key] = $value;
+						}
+					}
+				}
+				closedir($handle);
+			}
+		}
+		if (is_file(YOD_RUNPATH . '/config.php')) {
+			$develop = include YOD_RUNPATH . '/config.php';
+			if (is_array($develop)) {
+				foreach ($develop as $key => $value) {
+					if (isset(self::$_config[$key]) && is_array(self::$_config[$key]) && is_array($value)) {
+						self::$_config[$key] = array_merge(self::$_config[$key], $value);
+					} else {
+						self::$_config[$key] = $develop[$key];
+					}
+				}
+			}
+		}
+		if (isset($GLOBALS['config']) && is_array($GLOBALS['config'])) {
+			foreach ($GLOBALS['config'] as $key => $value) {
+				if (isset(self::$_config[$key]) && is_array(self::$_config[$key]) && is_array($value)) {
+					self::$_config[$key] = array_merge(self::$_config[$key], $value);
+				} else {
+					self::$_config[$key] = $GLOBALS['config'][$key];
+				}
+			}
+		}
+	}
+
+	/**
+	 * init_register
+	 * @access public
+	 * @param void
+	 * @return void
+	 */
+	public static function init_register()
+	{
+		// errorlog
+		if ((YOD_RUNMODE & 2) && defined('YOD_LOGPATH')) {
+			set_error_handler(array('Yod_Base', 'errorlog'));
+		}
+
+		// autoload
+		spl_autoload_register(array('Yod_Base', 'autoload'));
+
+	}
+
+	/**
+	 * init_autorun
+	 * @access public
+	 * @param void
+	 * @return void
+	 */
+	public static function init_autorun()
+	{
+		if (YOD_RUNMODE & 1) {
+			if (defined('YOD_RUNPATH')) {
+				Yod_Application::app()->run();
+				exit;
+			} else {
+				define('YOD_RUNPATH', dirname(__FILE__));
+			}
+		}
 	}
 
 }

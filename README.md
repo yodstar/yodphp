@@ -79,7 +79,7 @@ index.php is the application entry
 error_reporting(E_ALL);
 date_default_timezone_set('Asia/Shanghai');
 
-defined('YOD_RUNPATH') or define('YOD_RUNPATH', dirname(__FILE__) . '/app');
+defined('YOD_RUNPATH') or define('YOD_RUNPATH', dirname(__FILE__) . '/webapp');
 
 ```
 
@@ -92,7 +92,7 @@ hello.php is the application hello entry
 error_reporting(E_ALL);
 date_default_timezone_set('Asia/Shanghai');
 
-defined('YOD_RUNPATH') or define('YOD_RUNPATH', dirname(__FILE__) . '/app');
+defined('YOD_RUNPATH') or define('YOD_RUNPATH', dirname(__FILE__) . '/webapp');
 
 class HelloController extends Yod_Controller
 {
@@ -187,7 +187,7 @@ The view script for default controller and default action is in the app/views/in
     <title>Hello World</title>
   </head>
   <body>
-    <?php echo $content; ?>
+    <?= $content; ?>
   </body>
 </html>
 ```

@@ -3,8 +3,54 @@
 
 ARG_ENABLE("yod", "enable yod support", "no");
 
+ARG_WITH("yod-crypt", "yod crypt support", "no");
+
+ARG_ENABLE("yod-debug", "enable yod debug mode", "no");
+
 if (PHP_YOD == "yes") {
-	EXTENSION("yod", "yod.c yod_application.c yod_request.c yod_controller.c yod_action.c yod_widget.c yod_server.c yod_client.c yod_model.c yod_dbmodel.c yod_database.c yod_dbpdo.c yod_plugin.c yod_base.c yod_debug.c");
+	if (PHP_YOD_CRYPT != "no") {
+		AC_DEFINE('PHP_YOD_CRYPT', 1, 'define to 1 if you want to running in crypt mode')
+	else
+		AC_DEFINE('PHP_YOD_CRYPT', 0, 'define to 1 if you want to running in crypt mode')
+	fi
+
+	if (PHP_YOD_DEBUG == "yes") {
+		AC_DEFINE('PHP_YOD_DEBUG', 1, 'define to 1 if you want to running in debug mode')
+	} else {
+		AC_DEFINE('PHP_YOD_DEBUG', 0, 'define to 1 if you want to running in debug mode')
+	}
+
+	ext_files = 
+		"yod.c " +
+		"yod_application.c " +
+		"yod_request.c " +
+		"yod_controller.c " +
+		"yod_action.c " +
+		"yod_widget.c " +
+		"yod_server.c " +
+		"yod_client.c " +
+		"yod_model.c " +
+		"yod_dbmodel.c " +
+		"yod_database.c" +
+		"yod_dbpdo.c" +
+		"yod_plugin.c" +
+		"yod_base.c";
+
+	if (PHP_YOD_CRYPT != "no") {
+		if (PHP_YOD_CRYPT == "yes") {
+			ext_files = ext_files + " crypt/screw.c"
+			PHP_YOD_CRYPT_TYPE = "crypt/screw.h"
+		} else {
+			ext_files = ext_files + " crypt/" + PHP_YOD_CRYPT + ".c"
+			PHP_YOD_CRYPT_TYPE = PHP_YOD_CRYPT
+		}
+	}
+
+	if (PHP_YOD_DEBUG == "yes") {
+		ext_files = ext_files + " yod_debug.c"
+	}
+
+	EXTENSION("yod", ext_files);
 
 	AC_DEFINE("HAVE_YOD", 1, "Have Yod Support");
 }

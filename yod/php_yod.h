@@ -51,10 +51,10 @@ extern zend_module_entry yod_module_entry;
 #endif
 
 #if PHP_YOD_DEBUG
-#define YOD_VERSION					"1.3.4-dev"
+#define YOD_VERSION					"1.3.5-dev"
 #define YOD_RUNMODE					7
 #else
-#define YOD_VERSION					"1.3.4"
+#define YOD_VERSION					"1.3.5"
 #define YOD_RUNMODE					3
 #endif
 
@@ -65,6 +65,7 @@ extern zend_module_entry yod_module_entry;
 
 #define YOD_DIR_CONFIG				"configs"
 #define YOD_DIR_CONTROLLER			"controllers"
+#define YOD_DIR_SERVICE				"service"
 #define YOD_DIR_MODEL				"models"
 #define YOD_DIR_VIEW				"views"
 #define YOD_DIR_WIDGET				"widgets"
@@ -72,7 +73,7 @@ extern zend_module_entry yod_module_entry;
 #define YOD_DIR_EXTEND				"extends"
 #define YOD_DIR_DRIVER				"drivers"
 
-#define YOD_APP_CNAME				"Yod_Application"
+#define YOD_BASE_CNAME				"Yod_Base"
 
 #if ((PHP_MAJOR_VERSION == 5) && (PHP_MINOR_VERSION == 2)) || (PHP_MAJOR_VERSION > 5)
 #define Z_SET_REFCOUNT_P(pz, rc)	  (pz)->refcount = rc
@@ -129,12 +130,10 @@ char *yod_runfile(TSRMLS_D);
 char *yod_runpath(TSRMLS_D);
 char *yod_extpath(TSRMLS_D);
 char *yod_logpath(TSRMLS_D);
-void yod_loading(TSRMLS_D);
+void yod_init_startup(TSRMLS_D);
 
 int yod_do_exit(long status TSRMLS_DC);
-int yod_register(char *moduel, char *method TSRMLS_DC);
 int yod_include(char *filepath, zval **retval, int dtor TSRMLS_DC);
-
 zval* yod_call_method(zval **object_pp, zend_class_entry *obj_ce, zend_function **fn_proxy, char *function_name, int function_name_len, zval **retval_ptr_ptr, int param_count, zval* arg1, zval* arg2, zval* arg3, zval* arg4, zval* arg5 TSRMLS_DC);
 
 #define yod_call_method_with_3_params(obj, obj_ce, fn_proxy, function_name, retval, arg1, arg2, arg3) \
@@ -145,6 +144,9 @@ zval* yod_call_method(zval **object_pp, zend_class_entry *obj_ce, zend_function 
 
 #define yod_call_method_with_5_params(obj, obj_ce, fn_proxy, function_name, retval, arg1, arg2, arg3, arg4, arg5) \
 	yod_call_method(obj, obj_ce, fn_proxy, function_name, sizeof(function_name)-1, retval, 5, arg1, arg2, arg3, arg4, arg5 TSRMLS_CC)
+
+zend_op_array *(*yod_orig_compile_file)(zend_file_handle *file_handle, int type TSRMLS_DC);
+zend_op_array *(*yod_zend_compile_file)(zend_file_handle *file_handle, int type TSRMLS_DC);
 
 ZEND_BEGIN_MODULE_GLOBALS(yod)
 	double		runtime;
@@ -164,7 +166,8 @@ ZEND_BEGIN_MODULE_GLOBALS(yod)
 	zval		*plugins;
 
 	int			exited;
-	int			loading;
+	int			startup;
+	int			autorun;
 	char		*runfile;
 
 #if PHP_YOD_DEBUG

@@ -1,0 +1,26 @@
+#!/bin/bash
+
+screw_encode()
+{
+    local path=$arg1;
+    for file in `ls $path`; do
+        if [ -f $path/$file ]; then
+            if [ ${file##*.} == php ]; then
+                screw_encrypt $path/$file;
+                rm -f $path/${file}.bak;
+            fi;
+        else
+            arg1=$path/$file;
+            screw_encode;
+        fi;
+    done;
+}
+
+if [ x$1 == x ]; then
+    echo 'Usage: ./yimi_enc path';
+    exit;
+else
+    declare arg1=$1;
+    screw_encode;
+fi;
+

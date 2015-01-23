@@ -42,6 +42,7 @@ zend_class_entry *yod_client_ce;
 */
 ZEND_BEGIN_ARG_INFO_EX(yod_client_construct_arginfo, 0, 0, 1)
 	ZEND_ARG_INFO(0, url)
+	ZEND_ARG_INFO(0, handle)
 	ZEND_ARG_INFO(0, timeout)
 ZEND_END_ARG_INFO()
 
@@ -120,6 +121,10 @@ static char *get_http_header_value(char *headers, char *type)
 {
 	char *pos, *tmp = NULL;
 	int typelen, headerslen;
+
+	if (!headers) {
+		return NULL;
+	}
 
 	typelen = strlen(type);
 	headerslen = strlen(headers);
@@ -313,14 +318,16 @@ static int yod_client_http_request(zval *url, zval *request, long timeout, zval 
 
 
 	if (!url || Z_TYPE_P(url) != IS_STRING) {
-		spprintf(errmsg, 0, "unable to connect to server");
+		spprintf(errmsg, 0, "Cannot connect to server");
 		return 0;
 	}
 
 	http_url = php_url_parse_ex(Z_STRVAL_P(url), Z_STRLEN_P(url));
-	if (http_url->host == NULL) {
-		spprintf(errmsg, 0, "unable to connect to server");
-		php_url_free(http_url);
+	if (!http_url || http_url->host == NULL) {
+		spprintf(errmsg, 0, "Cannot connect to server");
+		if (http_url) {
+			php_url_free(http_url);
+		}
 		return 0;
 	}
 
@@ -352,7 +359,7 @@ static int yod_client_http_request(zval *url, zval *request, long timeout, zval 
 	}
 
 	if (stream == NULL) {
-		spprintf(errmsg, 0, "unable to connect to %s:%ld (%s)",
+		spprintf(errmsg, 0, "Unable to connect to %s:%ld (%s)",
 				http_url->host, http_url->port, errstr == NULL ? "Unknown error" : errstr);
 
 		php_url_free(http_url);
@@ -377,14 +384,14 @@ static int yod_client_http_request(zval *url, zval *request, long timeout, zval 
 		smart_str_appendc(&http_request, '#');
 		smart_str_appends(&http_request, http_url->fragment);
 	}
-	smart_str_append_const(&http_request, "HTTP/1.0\r\n");
+	smart_str_append_const(&http_request, " HTTP/1.0\r\n");
 	smart_str_append_const(&http_request, "Host: ");
 	smart_str_appends(&http_request, http_url->host);
 	smart_str_appendc(&http_request, ':');
 	smart_str_append_unsigned(&http_request, http_url->port);
 	smart_str_append_const(&http_request, "\r\nConnection: close\r\n");
 	smart_str_append_const(&http_request, "User-Agent: Yod_Client\r\n");
-	smart_str_append_const(&http_request, "Content-Type: text/plain; charset=utf-8\r\n");
+	smart_str_append_const(&http_request, "Content-Type: text/json; charset=UTF-8\r\n");
 	smart_str_append_const(&http_request, "Content-Length: ");
 	if (request && Z_TYPE_P(request) == IS_STRING) {
 		smart_str_append_long(&http_request, Z_STRLEN_P(request));
@@ -400,7 +407,7 @@ static int yod_client_http_request(zval *url, zval *request, long timeout, zval 
 	php_stream_auto_cleanup(stream);
 	request_len = php_stream_write(stream, http_request.c, http_request.len);
 	if (request_len != http_request.len) {
-		spprintf(errmsg, 0, "HTTP request error");
+		spprintf(errmsg, 0, "HTTP request failed");
 		smart_str_free(&http_request);
 		php_stream_close(stream);
 		return 0;
@@ -410,11 +417,14 @@ static int yod_client_http_request(zval *url, zval *request, long timeout, zval 
 	/* Get HTTP response headers */
 	do {
 		if (!get_http_headers(stream, &http_headers, &http_headers_size TSRMLS_CC)) {
-			if (http_headers) {
-				efree(http_headers);
-			}
 			php_stream_close(stream);
-			break;
+			if (http_headers) {
+				MAKE_STD_ZVAL(*response);
+				ZVAL_STRINGL(*response, http_headers, http_headers_size, 1);
+				efree(http_headers);
+				return 1;
+			}
+			return 0;
 		}
 
 		/* Check to see what HTTP status was sent */
@@ -470,7 +480,9 @@ static int yod_client_http_request(zval *url, zval *request, long timeout, zval 
 	/* Get HTTP response body */
 	if (!get_http_body(stream, http_close, http_headers, &http_body, &http_body_size TSRMLS_CC)) {
 		php_stream_close(stream);
-		efree(http_headers);
+		if (http_headers) {
+			efree(http_headers);
+		}
 		return 0;
 	}
 
@@ -488,9 +500,9 @@ static int yod_client_http_request(zval *url, zval *request, long timeout, zval 
 }
 /* }}} */
 
-/** {{{ void yod_client_construct(yod_client_t *object, char *url, uint url_len, long timeout TSRMLS_DC)
+/** {{{ void yod_client_construct(yod_client_t *object, char *url, uint url_len, char *handle, uint handle_len, long timeout TSRMLS_DC)
 */
-void yod_client_construct(yod_client_t *object, char *url, uint url_len, long timeout TSRMLS_DC) {
+void yod_client_construct(yod_client_t *object, char *url, uint url_len, char *handle, uint handle_len, long timeout TSRMLS_DC) {
 	zval *extra;
 
 	if (!object || !url) {
@@ -498,6 +510,9 @@ void yod_client_construct(yod_client_t *object, char *url, uint url_len, long ti
 	}
 
 	zend_update_property_stringl(Z_OBJCE_P(object), object, ZEND_STRL("_url"), url, url_len TSRMLS_CC);
+	if (handle_len > 0) {
+		zend_update_property_stringl(Z_OBJCE_P(object), object, ZEND_STRL("_handle"), handle, handle_len TSRMLS_CC);
+	}
 	zend_update_property_long(Z_OBJCE_P(object), object, ZEND_STRL("_timeout"), timeout TSRMLS_CC);
 
 	MAKE_STD_ZVAL(extra);
@@ -510,8 +525,8 @@ void yod_client_construct(yod_client_t *object, char *url, uint url_len, long ti
 /** {{{ void yod_client_call(yod_client_t *object, char *method, uint method_len, zval *params, zval *result TSRMLS_DC)
 */
 void yod_client_call(yod_client_t *object, char *method, uint method_len, zval *params, zval *result TSRMLS_DC) {
-	zval *url, *extra, *timeout, *debug, **ppval;
-	zval *response, *response1, *decrypt;
+	zval *url, *extra, *handle, *timeout, *debug, **ppval;
+	zval *decrypt, *response, *response1 = NULL;
 	zval *request, *request1, *encrypt;
 	char *errmsg = NULL;
 	smart_str buf = {0};
@@ -524,7 +539,7 @@ void yod_client_call(yod_client_t *object, char *method, uint method_len, zval *
 
 	url = zend_read_property(Z_OBJCE_P(object), object, ZEND_STRL("_url"), 1 TSRMLS_CC);
 	if (!url || Z_TYPE_P(url) != IS_STRING) {
-		php_error_docref(NULL TSRMLS_CC, E_ERROR, "unable to connect to server");
+		php_error_docref(NULL TSRMLS_CC, E_ERROR, "Cannot connect to server");
 		return;
 	}
 
@@ -534,10 +549,17 @@ void yod_client_call(yod_client_t *object, char *method, uint method_len, zval *
 		array_init(extra);
 	}
 
+	handle = zend_read_property(Z_OBJCE_P(object), object, ZEND_STRL("_handle"), 1 TSRMLS_CC);
+
 	// request
 	MAKE_STD_ZVAL(request);
 	array_init(request);
 	add_assoc_string(request, "client", "Yod_Client", 1);
+	if (!handle || Z_TYPE_P(handle) != IS_STRING) {
+		add_assoc_null(request, "handle");
+	} else {
+		add_assoc_stringl(request, "handle", Z_STRVAL_P(handle), Z_STRLEN_P(handle), 1);
+	}
 	add_assoc_stringl(request, "method", method, method_len, 1);
 	Z_ADDREF_P(params);
 	add_assoc_zval(request, "params", params);
@@ -558,7 +580,7 @@ void yod_client_call(yod_client_t *object, char *method, uint method_len, zval *
 	smart_str_free(&buf);
 
 	if (!request1 || Z_TYPE_P(request1) != IS_STRING) {
-		zend_throw_exception_ex(NULL, 0 TSRMLS_CC, "encrypt error");
+		zend_throw_exception_ex(NULL, 0 TSRMLS_CC, "Data encrypt failed");
 		if (request1) {
 			zval_ptr_dtor(&request1);
 		}
@@ -576,7 +598,7 @@ void yod_client_call(yod_client_t *object, char *method, uint method_len, zval *
 			zend_throw_exception_ex(NULL, 0 TSRMLS_CC, errmsg);
 			efree(errmsg);
 		} else {
-			zend_throw_exception_ex(NULL, 0 TSRMLS_CC, "request error");
+			zend_throw_exception_ex(NULL, 0 TSRMLS_CC, "HTTP request failed");
 		}
 		if (response1) {
 			zval_ptr_dtor(&response1);
@@ -590,7 +612,7 @@ void yod_client_call(yod_client_t *object, char *method, uint method_len, zval *
 	}
 
 	if (!response1 || Z_TYPE_P(response1) != IS_STRING) {
-		zend_throw_exception_ex(NULL, 0 TSRMLS_CC, "response error");
+		zend_throw_exception_ex(NULL, 0 TSRMLS_CC, "Empty response from server");
 		if (response1) {
 			zval_ptr_dtor(&response1);
 		}
@@ -602,7 +624,7 @@ void yod_client_call(yod_client_t *object, char *method, uint method_len, zval *
 	zval_ptr_dtor(&response1);
 
 	if (!decrypt || Z_TYPE_P(decrypt) != IS_STRING) {
-		zend_throw_exception_ex(NULL, 0 TSRMLS_CC, "decrypt error");
+		zend_throw_exception_ex(NULL, 0 TSRMLS_CC, "Data decrypt failed");
 		if (decrypt) {
 			zval_ptr_dtor(&decrypt);
 		}
@@ -616,7 +638,7 @@ void yod_client_call(yod_client_t *object, char *method, uint method_len, zval *
 	}
 
 	if (strncmp(Z_STRVAL_P(decrypt), "{\"server\":\"Yod_Server\",", 23) != 0) {
-		zend_throw_exception_ex(NULL, 0 TSRMLS_CC, "format error");
+		zend_throw_exception_ex(NULL, 0 TSRMLS_CC, "Incorrect data format");
 		zval_ptr_dtor(&decrypt);
 		return;
 	}
@@ -643,7 +665,7 @@ void yod_client_call(yod_client_t *object, char *method, uint method_len, zval *
 		}
 		// data
 		if (zend_hash_find(Z_ARRVAL_P(response), ZEND_STRS("data"), (void **)&ppval) != SUCCESS) {
-			zend_throw_exception_ex(NULL, 0 TSRMLS_CC, "unknown error");
+			zend_throw_exception_ex(NULL, 0 TSRMLS_CC, "Unknown error");
 			zval_ptr_dtor(&response);
 			return;
 		}
@@ -672,6 +694,8 @@ void yod_client_call(yod_client_t *object, char *method, uint method_len, zval *
 PHP_METHOD(yod_client, __construct) {
 	char *url = NULL;
 	uint url_len = 0;
+	char *handle = NULL;
+	uint handle_len = 0;
 	long timeout = 5;
 
 #if PHP_YOD_DEBUG
@@ -679,11 +703,11 @@ PHP_METHOD(yod_client, __construct) {
 	yod_debugf("yod_client_construct()");
 #endif
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|l", &url, &url_len, &timeout) == FAILURE) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|sl", &url, &url_len, &handle, &handle_len, &timeout) == FAILURE) {
 		return;
 	}
 
-	yod_client_construct(getThis(), url, url_len, timeout TSRMLS_CC);
+	yod_client_construct(getThis(), url, url_len, handle, handle_len, timeout TSRMLS_CC);
 }
 /* }}} */
 
@@ -928,6 +952,7 @@ PHP_MINIT_FUNCTION(yod_client) {
 
 	zend_declare_property_null(yod_client_ce, ZEND_STRL("_url"), ZEND_ACC_PROTECTED TSRMLS_CC);
 	zend_declare_property_null(yod_client_ce, ZEND_STRL("_extra"), ZEND_ACC_PROTECTED TSRMLS_CC);
+	zend_declare_property_null(yod_client_ce, ZEND_STRL("_handle"), ZEND_ACC_PROTECTED TSRMLS_CC);
 	zend_declare_property_long(yod_client_ce, ZEND_STRL("_timeout"), 5, ZEND_ACC_PROTECTED TSRMLS_CC);
 	zend_declare_property_bool(yod_client_ce, ZEND_STRL("_debug"), 0, ZEND_ACC_PROTECTED TSRMLS_CC);
 
