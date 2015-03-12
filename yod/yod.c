@@ -482,7 +482,7 @@ char *yod_logpath(TSRMLS_D) {
 void yod_init_config(TSRMLS_D) {
 	zval *config, *config1, *value1, *pzval;
 	zval **ppconf, **data, **ppval;
-	char *filepath, *filepath1, *filename, *str_key;
+	char *filepath, *filepath1, *filename, *str_key, *new_key;
 	uint filepath_len, entry_len, key_len;
 	ulong num_key;
 	HashPosition pos;
@@ -602,7 +602,28 @@ void yod_init_config(TSRMLS_D) {
 	}
 
 	MAKE_STD_ZVAL(YOD_G(config));
-	ZVAL_ZVAL(YOD_G(config), config, 1, 0);
+
+	array_init_size(YOD_G(config), zend_hash_num_elements(Z_ARRVAL_P(config)));
+
+	zend_hash_internal_pointer_reset_ex(Z_ARRVAL_P(config), &pos);
+	while (zend_hash_get_current_data_ex(Z_ARRVAL_P(config), (void **)&data, &pos) == SUCCESS) {
+		zval_add_ref(data);
+
+		switch (zend_hash_get_current_key_ex(Z_ARRVAL_P(config), &str_key, &key_len, &num_key, 0, &pos)) {
+			case HASH_KEY_IS_LONG:
+				zend_hash_index_update(Z_ARRVAL_P(YOD_G(config)), num_key, data, sizeof(data), NULL);
+				break;
+			case HASH_KEY_IS_STRING:
+				new_key = estrndup(str_key, key_len - 1);
+				php_strtolower(new_key, key_len - 1);
+				zend_hash_update(Z_ARRVAL_P(YOD_G(config)), new_key, key_len, data, sizeof(data), NULL);
+				efree(new_key);
+				break;
+		}
+
+		zend_hash_move_forward_ex(Z_ARRVAL_P(config), &pos);
+	}
+
 	zval_ptr_dtor(&config);
 }
 /* }}} */

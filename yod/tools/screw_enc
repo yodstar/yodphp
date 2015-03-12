@@ -17,7 +17,7 @@ screw_encode()
 }
 
 if [ x$1 == x ]; then
-    echo 'Usage: ./yimi_enc path';
+    echo 'Usage: ./screw_enc path';
     exit;
 else
     declare arg1=$1;

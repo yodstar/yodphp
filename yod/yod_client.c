@@ -759,7 +759,7 @@ PHP_METHOD(yod_client, __get) {
 
 	extra = zend_read_property(Z_OBJCE_P(object), object, ZEND_STRL("_extra"), 1 TSRMLS_CC);
 	if (extra && Z_TYPE_P(extra) == IS_ARRAY) {
-		if (zend_hash_find(Z_ARRVAL_P(extra), name, name_len, (void **)&value) == SUCCESS) {
+		if (zend_hash_find(Z_ARRVAL_P(extra), name, name_len + 1, (void **)&value) == SUCCESS) {
 			RETURN_ZVAL(*value, 1, 0);
 		}
 	}
@@ -787,7 +787,7 @@ PHP_METHOD(yod_client, __isset) {
 
 	extra = zend_read_property(Z_OBJCE_P(object), object, ZEND_STRL("_extra"), 1 TSRMLS_CC);
 	if (extra && Z_TYPE_P(extra) == IS_ARRAY) {
-		if (zend_hash_exists(Z_ARRVAL_P(extra), name, name_len)) {
+		if (zend_hash_exists(Z_ARRVAL_P(extra), name, name_len + 1)) {
 			RETURN_TRUE;
 		}
 	}
@@ -815,8 +815,8 @@ PHP_METHOD(yod_client, __unset) {
 
 	extra = zend_read_property(Z_OBJCE_P(object), object, ZEND_STRL("_extra"), 1 TSRMLS_CC);
 	if (extra && Z_TYPE_P(extra) == IS_ARRAY) {
-		if (zend_hash_exists(Z_ARRVAL_P(extra), name, name_len)) {
-			zend_hash_del_key_or_index(Z_ARRVAL_P(extra), name, name_len, 0, HASH_DEL_KEY);
+		if (zend_hash_exists(Z_ARRVAL_P(extra), name, name_len + 1)) {
+			zend_hash_del_key_or_index(Z_ARRVAL_P(extra), name, name_len + 1, 0, HASH_DEL_KEY);
 		}
 	}
 }

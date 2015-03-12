@@ -11,18 +11,13 @@
 
 // yodphp constant
 defined('YOD_RUNTIME') or define('YOD_RUNTIME', microtime(true));
-defined('YOD_VERSION') or define('YOD_VERSION', '1.3.5');
+defined('YOD_VERSION') or define('YOD_VERSION', '1.3.6');
 defined('YOD_FORWARD') or define('YOD_FORWARD', 5);
 defined('YOD_RUNMODE') or define('YOD_RUNMODE', 3);
 defined('YOD_CHARSET') or define('YOD_CHARSET', 'utf-8');
 defined('YOD_VIEWEXT') or define('YOD_VIEWEXT', '.php');
 defined('YOD_PATHVAR') or define('YOD_PATHVAR', '');
 defined('YOD_EXTPATH') or define('YOD_EXTPATH', dirname(__FILE__));
-
-// yodphp autorun
-Yod_Base::init_config();
-Yod_Base::init_register();
-Yod_Base::init_autorun();
 
 /**
  * Yod_Application

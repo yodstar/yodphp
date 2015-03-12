@@ -881,6 +881,7 @@ static int yod_dbmodel_find(yod_dbmodel_t *object, char *where, uint where_len, 
 			zend_call_method_with_0_params(&yoddb, Z_OBJCE_P(yoddb), NULL, "free", NULL);
 			zval_ptr_dtor(&result);
 			if (data) {
+				zend_update_property(Z_OBJCE_P(object), object, ZEND_STRL("_data"), data TSRMLS_CC);
 				if (retval) {
 					ZVAL_ZVAL(retval, data, 1, 1);
 					zval_ptr_dtor(&query);

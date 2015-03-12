@@ -106,7 +106,7 @@ ZEND_END_ARG_INFO()
 */
 int yod_base_config(char *name, uint name_len, zval *result TSRMLS_DC) {
 	zval *pzval, **ppval;
-	char *skey, *name1, *token;
+	char *skey, *name1, *name2, *token;
 	uint skey_len;
 
 	if (!YOD_G(startup)) {
@@ -123,6 +123,16 @@ int yod_base_config(char *name, uint name_len, zval *result TSRMLS_DC) {
 		return 1;
 	} else {
 		name1 = estrndup(name, name_len);
+
+		name2 = name1;
+		while (*name2 != '\0') {
+			if (*name2 == '.') {
+				break;
+			}
+			*name2 = tolower(*name2);
+			name2++;
+		}
+
 		if (zend_hash_find(Z_ARRVAL_P(YOD_G(config)), name1, name_len + 1, (void **)&ppval) == SUCCESS) {
 			ZVAL_ZVAL(result, *ppval, 1, 0);
 			efree(name1);

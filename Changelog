@@ -1,4 +1,11 @@
-This file documents changes for Yod Framework release 1.3.5 and earlier.
+This file documents changes for Yod Framework release 1.3.6 and earlier.
+
+version 1.3.6:
+
+  - Configuration is Compatible with uppercase
+  - Modify the method find of class Yod_Model and Yod_DbModel
+  - Add public method __set, __get, __isset and __unset in the class Yod_Model
+  - Fixed a bug in the class Yod_Client (in __get, __isset and __unset)
 
 version 1.3.5:
 
@@ -113,7 +120,7 @@ version 1.1.0:
   - Change the constant APP_PATH to YOD_RUNPATH
   - Add a auto running mechanism
   - Add the multiple entry mode
-  - Fixed a issues (database drivers bug)
+  - Fixed a issue (database drivers bug)
 
 version 1.0.2:
 
