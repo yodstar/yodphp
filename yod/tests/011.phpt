@@ -45,6 +45,7 @@ Yod_Request Object
     [_routed:protected] => 1
     [_dispatched:protected] => 1
     [uri] => en/index/rule1
+    [module] => Home
     [controller] => Index
     [action] => rule1
     [params] => Array
@@ -58,6 +59,7 @@ Yod_Request Object
     [_routed:protected] => 1
     [_dispatched:protected] => 1
     [uri] => zh/index/rule2/1
+    [module] => Home
     [controller] => Index
     [action] => rule2
     [params] => Array

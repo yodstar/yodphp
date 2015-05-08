@@ -222,15 +222,15 @@ int yod_base_import(char *alias, uint alias_len, char *classext, uint classext_l
 
 		if (classfile_len > 4 && strncasecmp(classfile, "yod/", 4) == 0) {
 			if (classext_len) {
-				spprintf(&classpath, 0, "%s/%s/%s%s", yod_extpath(TSRMLS_C), YOD_DIR_EXTEND, classfile + 4, classext);
+				spprintf(&classpath, 0, "%s/%s/Yod/%s%s", yod_runpath(TSRMLS_C), YOD_DIR_EXTEND, classfile + 4, classext);
 			} else {
-				spprintf(&classpath, 0, "%s/%s/%s.class.php", yod_extpath(TSRMLS_C), YOD_DIR_EXTEND, classfile + 4);
+				spprintf(&classpath, 0, "%s/%s/Yod/%s.php", yod_runpath(TSRMLS_C), YOD_DIR_EXTEND, classfile + 4);
 			}
 		} else {
 			if (classext_len) {
 				spprintf(&classpath, 0, "%s/%s/%s%s", yod_runpath(TSRMLS_C), YOD_DIR_EXTEND, classfile, classext);
 			} else {
-				spprintf(&classpath, 0, "%s/%s/%s.class.php", yod_runpath(TSRMLS_C), YOD_DIR_EXTEND, classfile);
+				spprintf(&classpath, 0, "%s/%s/%s.php", yod_runpath(TSRMLS_C), YOD_DIR_EXTEND, classfile);
 			}
 		}
 
@@ -249,15 +249,15 @@ int yod_base_import(char *alias, uint alias_len, char *classext, uint classext_l
 
 			if (classfile_len > 4 && strncasecmp(classfile, "yod/", 4) == 0) {
 				if (classext_len) {
-					spprintf(&classpath, 0, "%s/%s/%s%s", yod_extpath(TSRMLS_C), YOD_DIR_EXTEND, classfile + 4, classext);
+					spprintf(&classpath, 0, "%s/%s/Yod/%s%s", yod_runpath(TSRMLS_C), YOD_DIR_EXTEND, classfile + 4, classext);
 				} else {
-					spprintf(&classpath, 0, "%s/%s/%s.class.php", yod_extpath(TSRMLS_C), YOD_DIR_EXTEND, classfile + 4);
+					spprintf(&classpath, 0, "%s/%s/Yod/%s.php", yod_runpath(TSRMLS_C), YOD_DIR_EXTEND, classfile + 4);
 				}
 			} else {
 				if (classext_len) {
 					spprintf(&classpath, 0, "%s/%s/%s%s", yod_runpath(TSRMLS_C), YOD_DIR_EXTEND, classfile, classext);
 				} else {
-					spprintf(&classpath, 0, "%s/%s/%s.class.php", yod_runpath(TSRMLS_C), YOD_DIR_EXTEND, classfile);
+					spprintf(&classpath, 0, "%s/%s/%s.php", yod_runpath(TSRMLS_C), YOD_DIR_EXTEND, classfile);
 				}
 			}
 
@@ -348,23 +348,23 @@ int yod_base_plugin(char *alias, uint alias_len, char *classext, uint classext_l
 				classname = classname1;
 			}
 			if (classext_len) {
-				spprintf(&classpath, 0, "%s/%s/%s%s", yod_extpath(TSRMLS_C), YOD_DIR_PLUGIN, classfile + 4, classext);
+				spprintf(&classpath, 0, "%s/%s/Yod/%s%s", yod_runpath(TSRMLS_C), YOD_DIR_PLUGIN, classfile + 4, classext);
 			} else {
-				spprintf(&classpath, 0, "%s/%s/%s.class.php", yod_extpath(TSRMLS_C), YOD_DIR_PLUGIN, classfile + 4);
+				spprintf(&classpath, 0, "%s/%s/Yod/%s.php", yod_runpath(TSRMLS_C), YOD_DIR_PLUGIN, classfile + 4);
 			}
 		} else if (strncasecmp(classname, "Yod_", 4) == 0) {
 			classfile2 = estrndup(classfile, classfile_len - classname_len);
 			if (classext_len) {
-				spprintf(&classpath, 0, "%s/%s/%s%s%s", yod_extpath(TSRMLS_C), YOD_DIR_PLUGIN, classfile2, classname + 4, classext);
+				spprintf(&classpath, 0, "%s/%s/Yod/%s%s%s", yod_runpath(TSRMLS_C), YOD_DIR_PLUGIN, classfile2, classname + 4, classext);
 			} else {
-				spprintf(&classpath, 0, "%s/%s/%s%s.class.php", yod_extpath(TSRMLS_C), YOD_DIR_PLUGIN, classfile2, classname + 4);
+				spprintf(&classpath, 0, "%s/%s/Yod/%s%s.php", yod_runpath(TSRMLS_C), YOD_DIR_PLUGIN, classfile2, classname + 4);
 			}
 			efree(classfile2);
 		} else {
 			if (classext_len) {
 				spprintf(&classpath, 0, "%s/%s/%s%s", yod_runpath(TSRMLS_C), YOD_DIR_PLUGIN, classfile, classext);
 			} else {
-				spprintf(&classpath, 0, "%s/%s/%s.class.php", yod_runpath(TSRMLS_C), YOD_DIR_PLUGIN, classfile);
+				spprintf(&classpath, 0, "%s/%s/%s.php", yod_runpath(TSRMLS_C), YOD_DIR_PLUGIN, classfile);
 			}
 		}
 
@@ -388,7 +388,7 @@ int yod_base_plugin(char *alias, uint alias_len, char *classext, uint classext_l
 			MAKE_STD_ZVAL(config1);
 			loweralias = estrndup(alias, alias_len);
 			zend_str_tolower(loweralias, alias_len);
-			aliaspath_len = spprintf(&aliaspath, 0, "plugins.%s", loweralias);
+			aliaspath_len = spprintf(&aliaspath, 0, "plugin.%s", loweralias);
 			yod_base_config(aliaspath, aliaspath_len, config1 TSRMLS_CC);
 			if (config1 && Z_TYPE_P(config1) != IS_NULL) {
 				zend_call_method_with_1_params(&object, *pce, &(*pce)->constructor, ZEND_CONSTRUCTOR_FUNC_NAME, NULL, config1);
@@ -423,7 +423,7 @@ int yod_base_plugin(char *alias, uint alias_len, char *classext, uint classext_l
 */
 static int yod_base_autoload(char *classname, uint classname_len TSRMLS_DC) {
 	zend_class_entry **pce = NULL;
-	char *classfile, *classfile1, *classfile2, *classpath;
+	char *classfile, *classfile1, *classfile2, *classpath, *classpath1;
 	int depth = 0, depth1 = 0;
 
 #if PHP_YOD_DEBUG
@@ -445,17 +445,26 @@ static int yod_base_autoload(char *classname, uint classname_len TSRMLS_DC) {
 
 	if (strncasecmp(classfile, "Yod_", 4) == 0) { /* yodphp extends class */
 		if (strncasecmp(classfile, "Yod_Db", 6) == 0) {
-			spprintf(&classpath, 0, "%s/%s/%s.class.php", yod_extpath(TSRMLS_C), YOD_DIR_DRIVER, classfile + 4);
+			spprintf(&classpath, 0, "%s/%s/%s.php", yod_runpath(TSRMLS_C), YOD_DIR_DRIVER, classfile + 4);
 		} else {
-			spprintf(&classpath, 0, "%s/%s/%s.class.php", yod_extpath(TSRMLS_C), YOD_DIR_EXTEND, classfile + 4);
+			spprintf(&classpath, 0, "%s/%s/Yod/%s.php", yod_runpath(TSRMLS_C), YOD_DIR_EXTEND, classfile + 4);
 		}
 	} else {
 		if (classname_len > 10 && strncasecmp(classfile + classname_len - 10, "Controller", 10) == 0) {
-			spprintf(&classpath, 0, "%s/%s/%s.php", yod_runpath(TSRMLS_C), YOD_DIR_CONTROLLER, classfile);
+			spprintf(&classpath, 0, "%s/%s/%s/%s.php", yod_runpath(TSRMLS_C), YOD_G(modname), YOD_DIR_CONTROLLER, classfile);
 		} else if (classname_len > 5 && strncasecmp(classfile + classname_len - 5, "Model", 5) == 0) {
-			spprintf(&classpath, 0, "%s/%s/%s.php", yod_runpath(TSRMLS_C), YOD_DIR_MODEL, classfile);
+			spprintf(&classpath, 0, "%s/%s/%s/%s.php", yod_runpath(TSRMLS_C), YOD_G(modname), YOD_DIR_MODEL, classfile);
+			if (VCWD_ACCESS(classpath, F_OK) != 0) {
+				spprintf(&classpath1, 0, "%s/%s/%s.php", yod_runpath(TSRMLS_C), YOD_DIR_MODEL, classfile);
+				if (classpath) {
+					efree(classpath);
+				}
+				classpath = classpath1;
+			}
+		} else if (classname_len > 7 && strncasecmp(classfile + classname_len - 7, "Service", 7) == 0) {
+			spprintf(&classpath, 0, "%s/%s/%s.php", yod_runpath(TSRMLS_C), YOD_DIR_SERVICE, classfile);
 		} else {
-			spprintf(&classpath, 0, "%s/%s/%s.class.php", yod_runpath(TSRMLS_C), YOD_DIR_EXTEND, classfile);
+			spprintf(&classpath, 0, "%s/%s/%s.php", yod_runpath(TSRMLS_C), YOD_DIR_EXTEND, classfile);
 		}
 	}
 
@@ -474,17 +483,26 @@ static int yod_base_autoload(char *classname, uint classname_len TSRMLS_DC) {
 
 		if (strncasecmp(classfile, "Yod_", 4) == 0) { /* yodphp extends class */
 			if (strncasecmp(classfile, "Yod_Db", 6) == 0) {
-				spprintf(&classpath, 0, "%s/%s/%s.class.php", yod_extpath(TSRMLS_C), YOD_DIR_DRIVER, classfile + 4);
+				spprintf(&classpath, 0, "%s/%s/%s.php", yod_runpath(TSRMLS_C), YOD_DIR_DRIVER, classfile + 4);
 			} else {
-				spprintf(&classpath, 0, "%s/%s/%s.class.php", yod_extpath(TSRMLS_C), YOD_DIR_EXTEND, classfile + 4);
+				spprintf(&classpath, 0, "%s/%s/Yod/%s.php", yod_runpath(TSRMLS_C), YOD_DIR_EXTEND, classfile + 4);
 			}
 		} else {
 			if (classname_len > 10 && strncasecmp(classfile + classname_len - 10, "Controller", 10) == 0) {
-				spprintf(&classpath, 0, "%s/%s/%s.php", yod_runpath(TSRMLS_C), YOD_DIR_CONTROLLER, classfile);
+				spprintf(&classpath, 0, "%s/%s/%s/%s.php", yod_runpath(TSRMLS_C), YOD_G(modname), YOD_DIR_CONTROLLER, classfile);
 			} else if (classname_len > 5 && strncasecmp(classfile + classname_len - 5, "Model", 5) == 0) {
-				spprintf(&classpath, 0, "%s/%s/%s.php", yod_runpath(TSRMLS_C), YOD_DIR_MODEL, classfile);
+				spprintf(&classpath, 0, "%s/%s/%s/%s.php", yod_runpath(TSRMLS_C), YOD_G(modname), YOD_DIR_MODEL, classfile);
+				if (VCWD_ACCESS(classpath, F_OK) != 0) {
+					spprintf(&classpath1, 0, "%s/%s/%s.php", yod_runpath(TSRMLS_C), YOD_DIR_MODEL, classfile);
+					if (classpath) {
+						efree(classpath);
+					}
+					classpath = classpath1;
+				}
+			} else if (classname_len > 7 && strncasecmp(classfile + classname_len - 7, "Service", 7) == 0) {
+				spprintf(&classpath, 0, "%s/%s/%s.php", yod_runpath(TSRMLS_C), YOD_DIR_SERVICE, classfile);
 			} else {
-				spprintf(&classpath, 0, "%s/%s/%s.class.php", yod_runpath(TSRMLS_C), YOD_DIR_EXTEND, classfile);
+				spprintf(&classpath, 0, "%s/%s/%s.php", yod_runpath(TSRMLS_C), YOD_DIR_EXTEND, classfile);
 			}
 		}
 

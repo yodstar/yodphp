@@ -12,9 +12,10 @@ defined('YOD_RUNMODE') or define('YOD_RUNMODE', 1);
 define('TESTS_PATH', dirname(__FILE__));
 include TESTS_PATH . '/clean.php';
 
-is_dir(TESTS_PATH . '/views') or mkdir(TESTS_PATH . '/views');
-is_dir(TESTS_PATH . '/views/tests') or mkdir(TESTS_PATH . '/views/tests');
-file_put_contents(TESTS_PATH . '/views/tests/hello.php', <<<PHP
+is_dir(TESTS_PATH . '/Home') or mkdir(TESTS_PATH . '/Home');
+is_dir(TESTS_PATH . '/Home/View') or mkdir(TESTS_PATH . '/Home/View');
+is_dir(TESTS_PATH . '/Home/View/tests') or mkdir(TESTS_PATH . '/Home/View/tests');
+file_put_contents(TESTS_PATH . '/Home/View/tests/hello.php', <<<PHP
 <?php echo \$yodphp; ?>
 
 <?php echo \$hello; ?>
@@ -56,7 +57,7 @@ class TestsController extends Yod_Controller
 
     public function requestAction()
     {
-        $this->_view['tpl_path'] = './tests/views';
+        $this->_view['tpl_path'] = './tests/Home/View';
         $this->forward('hello');
     }
 
@@ -79,6 +80,7 @@ TestsController Object
             [_routed:protected] => 1
             [_dispatched:protected] => 1
             [uri] => tests/request
+            [module] => Home
             [controller] => Tests
             [action] => request
             [params] => Array
@@ -95,7 +97,7 @@ TestsController Object
                     [_PUBLIC_] => /Public/
                 )
 
-            [tpl_path] => ./tests/views
+            [tpl_path] => ./tests/Home/View
             [tpl_file] => 
         )
 

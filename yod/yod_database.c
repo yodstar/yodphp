@@ -305,7 +305,7 @@ int yod_database_getinstance(zval *config, yod_database_t *retval TSRMLS_DC) {
 #else
 	if (zend_lookup_class_ex(classname, classname_len, NULL, 0, &pce TSRMLS_CC) == FAILURE) {
 #endif
-		spprintf(&classpath, 0, "%s/%s/%s.class.php", yod_extpath(TSRMLS_C), YOD_DIR_DRIVER, classname + 4);
+		spprintf(&classpath, 0, "%s/%s/%s.class.php", yod_runpath(TSRMLS_C), YOD_DIR_DRIVER, classname + 4);
 		if (VCWD_ACCESS(classpath, F_OK) == 0) {
 			yod_include(classpath, NULL, 1 TSRMLS_CC);
 		}
@@ -830,7 +830,12 @@ int yod_database_delete(yod_database_t *object, char *table, uint table_len, cha
 	if (where && params && Z_TYPE_P(params) == IS_ARRAY) {	
 
 		MAKE_STD_ZVAL(params1);
+
+#if PHP_API_VERSION > 20041225
 		array_init_size(params1, zend_hash_num_elements(Z_ARRVAL_P(params)));
+#else
+		array_init(params1);
+#endif
 
 		where1 = estrndup(where, where_len);
 		where1_len = where_len;
@@ -970,7 +975,12 @@ int yod_database_select(yod_database_t *object, zval *select, char *table, uint 
 	if (where && params && Z_TYPE_P(params) == IS_ARRAY) {	
 
 		MAKE_STD_ZVAL(params1);
+
+#if PHP_API_VERSION > 20041225
 		array_init_size(params1, zend_hash_num_elements(Z_ARRVAL_P(params)));
+#else
+		array_init(params1);
+#endif
 
 		where1 = estrndup(where, where_len);
 		where1_len = where_len;

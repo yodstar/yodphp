@@ -51,27 +51,29 @@ extern zend_module_entry yod_module_entry;
 #endif
 
 #if PHP_YOD_DEBUG
-#define YOD_VERSION					"1.3.6-dev"
+#define YOD_VERSION					"1.4.0-dev"
 #define YOD_RUNMODE					7
 #else
-#define YOD_VERSION					"1.3.6"
+#define YOD_VERSION					"1.4.0"
 #define YOD_RUNMODE					3
 #endif
 
 #define YOD_FORWARD					5
 #define YOD_CHARSET					"utf-8"
+#define YOD_MODULES					"Home"
 #define YOD_VIEWEXT					".php"
 #define YOD_PATHVAR					""
 
-#define YOD_DIR_CONFIG				"configs"
-#define YOD_DIR_CONTROLLER			"controllers"
-#define YOD_DIR_SERVICE				"service"
-#define YOD_DIR_MODEL				"models"
-#define YOD_DIR_VIEW				"views"
-#define YOD_DIR_WIDGET				"widgets"
-#define YOD_DIR_PLUGIN				"plugins"
-#define YOD_DIR_EXTEND				"extends"
-#define YOD_DIR_DRIVER				"drivers"
+#define YOD_DIR_CONFIG				"Config"
+#define YOD_DIR_CONTROLLER			"Controller"
+#define YOD_DIR_ACTION				"Action"
+#define YOD_DIR_SERVICE				"Service"
+#define YOD_DIR_MODEL				"Model"
+#define YOD_DIR_VIEW				"View"
+#define YOD_DIR_WIDGET				"Widget"
+#define YOD_DIR_PLUGIN				"Plugin"
+#define YOD_DIR_EXTEND				"Extend"
+#define YOD_DIR_DRIVER				"Driver"
 
 #define YOD_BASE_CNAME				"Yod_Base"
 
@@ -124,11 +126,11 @@ extern zend_module_entry yod_module_entry;
 long yod_runmode(TSRMLS_D);
 long yod_forward(TSRMLS_D);
 char *yod_charset(TSRMLS_D);
+char *yod_modules(TSRMLS_D);
 char *yod_viewext(TSRMLS_D);
 char *yod_pathvar(TSRMLS_D);
 char *yod_runfile(TSRMLS_D);
 char *yod_runpath(TSRMLS_D);
-char *yod_extpath(TSRMLS_D);
 char *yod_logpath(TSRMLS_D);
 void yod_init_startup(TSRMLS_D);
 
@@ -153,6 +155,7 @@ ZEND_BEGIN_MODULE_GLOBALS(yod)
 	long		forward;
 	long		runmode;
 	char		*charset;
+	char		*modules;
 	char		*viewext;
 	char		*pathvar;
 	char		*runpath;
@@ -169,6 +172,7 @@ ZEND_BEGIN_MODULE_GLOBALS(yod)
 	int			startup;
 	int			autorun;
 	char		*runfile;
+	char		*modname;
 
 #if PHP_YOD_DEBUG
 	zval		*debugs;

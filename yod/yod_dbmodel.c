@@ -48,10 +48,6 @@ ZEND_BEGIN_ARG_INFO_EX(yod_dbmodel_getinstance_arginfo, 0, 0, 0)
 	ZEND_ARG_INFO(0, config)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(yod_dbmodel_table_arginfo, 0, 0, 1)
-	ZEND_ARG_INFO(0, table)
-ZEND_END_ARG_INFO()
-
 ZEND_BEGIN_ARG_INFO_EX(yod_dbmodel_find_arginfo, 0, 0, 0)
 	ZEND_ARG_INFO(0, where)
 	ZEND_ARG_INFO(0, params)
@@ -1341,27 +1337,6 @@ PHP_METHOD(yod_dbmodel, getInstance) {
 }
 /* }}} */
 
-/** {{{ proto public Yod_DbModel::table($table)
-*/
-PHP_METHOD(yod_dbmodel, table) {
-	yod_dbmodel_t *object;
-	char *table = NULL;
-	uint table_len = 0;
-
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &table, &table_len) == FAILURE) {
-		return;
-	}
-
-	object = getThis();
-
-	if (table_len) {
-		zend_update_property_stringl(Z_OBJCE_P(object), object, ZEND_STRL("_table"), table, table_len TSRMLS_CC);
-	}
-
-	RETURN_ZVAL(object, 1, 0);
-}
-/* }}} */
-
 /** {{{ proto public Yod_DbModel::find($where = '', $params = array(), $select = null)
 */
 PHP_METHOD(yod_dbmodel, find) {
@@ -1726,7 +1701,6 @@ PHP_METHOD(yod_dbmodel, initQuery) {
 zend_function_entry yod_dbmodel_methods[] = {
 	PHP_ME(yod_dbmodel, __construct,	yod_dbmodel_construct_arginfo,		ZEND_ACC_PUBLIC|ZEND_ACC_CTOR)
 	PHP_ME(yod_dbmodel, getInstance,	yod_dbmodel_getinstance_arginfo,	ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
-	PHP_ME(yod_dbmodel, table,			yod_dbmodel_find_arginfo,			ZEND_ACC_PUBLIC)
 	PHP_ME(yod_dbmodel, find,			yod_dbmodel_find_arginfo,			ZEND_ACC_PUBLIC)
 	PHP_ME(yod_dbmodel, select,			yod_dbmodel_select_arginfo,			ZEND_ACC_PUBLIC)
 	PHP_ME(yod_dbmodel, count,			yod_dbmodel_count_arginfo,			ZEND_ACC_PUBLIC)

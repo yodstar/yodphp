@@ -43,20 +43,28 @@ make install
 - A classic Application directory layout:
 
 ```
-- index.php	// Application entry
-+ public
-+ webapp
-	+ actions	// Other actions
-	+ configs
++ code
+	+ Action	// Other action
+	+ Config
 		- config.php	// Configure 
-	+ controllers
-		- IndexController.php	// Default controller
-	+ extends	// Extends
-	+ models	// Models
-		- DemoModel.php
-	+ views
-		+ index	// View templates for default controller
-			- index.php
+	+ Home	// Default module
+		+ Controller
+			- IndexController.php	// Default controller
+		+ Model
+			- DemoModel.php
+		+ View
+			+ index	// View templates for default controller
+				- index.php
+	+ Extend
+	+ Model
+	+ Plugin
+	+ Service
+	+ Widget
+	- index.php	// Application entry
++ data
++ html
+	+ public
+	- index.php	// Website entry (require './../code/index.php')
 
 ```
 

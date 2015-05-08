@@ -158,7 +158,7 @@ void yod_request_erroraction(yod_request_t *object TSRMLS_DC) {
 		controller1_len = spprintf(&controller1, 0, "index");
 	}
 	runpath = yod_runpath(TSRMLS_C);
-	spprintf(&classpath, 0, "%s/actions/%s/ErrorAction.php", runpath, controller1);
+	spprintf(&classpath, 0, "%s/%s/%s/%s/ErrorAction.php", runpath, YOD_G(modname), YOD_DIR_ACTION, controller1);
 	efree(controller1);
 
 	MAKE_STD_ZVAL(target);
@@ -179,7 +179,7 @@ void yod_request_erroraction(yod_request_t *object TSRMLS_DC) {
 	} else {
 		efree(classpath);
 		zend_update_property_string(yod_request_ce, object, ZEND_STRL("controller"), "Error" TSRMLS_CC);
-		spprintf(&classpath, 0, "%s/actions/ErrorAction.php", runpath);
+		spprintf(&classpath, 0, "%s/%s/%s/ErrorAction.php", runpath, YOD_G(modname), YOD_DIR_ACTION);
 		if (VCWD_ACCESS(classpath, F_OK) == 0) {
 			yod_include(classpath, NULL, 1 TSRMLS_CC);
 #if PHP_API_VERSION < 20100412
@@ -211,13 +211,13 @@ int yod_request_route(yod_request_t *object, char *route, uint route_len TSRMLS_
 	zend_bool jit_initialization;
 
 	zval *method, *params, *rules, *value1, *pzval, **argv, **pinfo, **data, **data1, **ppval;
-	char *classname, *classname1, *controller, *action, *token, *runfile, *pathvar;
+	char *classname, *classname1, *module1, *module2, *controller, *action, *token, *runfile, *pathvar;
 	size_t classname_len, classname1_len;
 	zend_class_entry **pce = NULL;
 
 	char *str_key, *temp, *name, *value, *route1, *route2, *route3;
 	uint key_len, temp_len, name_len, tail_len, pos1, pos2;
-	int flag, count1, count2, route3_len;
+	int flag, count1, count2, module, route3_len;
 	ulong num_key;
 	HashPosition pos;
 
@@ -541,6 +541,9 @@ int yod_request_route(yod_request_t *object, char *route, uint route_len TSRMLS_
 	classname_len = spprintf(&classname, 0, "%sController", classname1);
 	efree(classname1);
 
+	/* module */
+	module = 1;
+
 #if PHP_API_VERSION < 20100412
 	if (zend_lookup_class_ex(classname, classname_len, 0, &pce TSRMLS_CC) == SUCCESS) {
 #else
@@ -551,43 +554,93 @@ int yod_request_route(yod_request_t *object, char *route, uint route_len TSRMLS_
 		efree(classname1);
 		efree(route1);
 		route1 = route2;
+		module = 0;
 	}
 
 	/* controller */
 	controller = php_strtok_r(route1, "/", &token);
 	if (!controller) {
+		zend_update_property_string(yod_request_ce, object, ZEND_STRL("module"), "Home" TSRMLS_CC);
 		zend_update_property_string(yod_request_ce, object, ZEND_STRL("controller"), "Index" TSRMLS_CC);
 		zend_update_property_string(yod_request_ce, object, ZEND_STRL("action"), "index" TSRMLS_CC);
 	} else {
-		zend_str_tolower(controller, strlen(controller));
-		*controller = toupper(*controller);
-		zend_update_property_string(yod_request_ce, object, ZEND_STRL("controller"), controller TSRMLS_CC);
+		/* module */
+		if (module && controller) {
+			zend_str_tolower(controller, strlen(controller));
+			module2 = yod_modules(TSRMLS_C);
+			module1 = controller;
 
-		/* action */
-		action = php_strtok_r(NULL, "/", &token);
-		if (!action) {
+			while (*module2 != '\0') {
+				if (module == 1) {
+					if (*module2 == *module1) {
+						module2++;
+						module1++;
+						if (*module1 == '\0') {
+							if (*module2 == ',' || *module2 == '\0') {
+								module1 = controller;
+								controller = php_strtok_r(NULL, "/", &token);
+								if (YOD_G(modname)) {
+									efree(YOD_G(modname));
+								}
+								YOD_G(modname) = estrdup(module1);
+								*(YOD_G(modname)) = toupper(*(YOD_G(modname)));
+								module = 2;
+								break;
+							}
+							module1 = controller;
+							module = 0;
+						}
+						continue;
+					}
+					module2++;
+					module = 0;
+					continue;
+				}
+
+				if (*module2 == ',') {
+					module = 1;
+				}
+				module2++;
+			}
+
+		}
+		zend_update_property_string(yod_request_ce, object, ZEND_STRL("module"), YOD_G(modname) TSRMLS_CC);
+
+		/* controller */
+		if (!controller) {
+			zend_update_property_string(yod_request_ce, object, ZEND_STRL("controller"), "Index" TSRMLS_CC);
 			zend_update_property_string(yod_request_ce, object, ZEND_STRL("action"), "index" TSRMLS_CC);
 		} else {
-			zend_str_tolower(action, strlen(action));
-			zend_update_property_string(yod_request_ce, object, ZEND_STRL("action"), action TSRMLS_CC);
+			zend_str_tolower(controller, strlen(controller));
+			*controller = toupper(*controller);
+			zend_update_property_string(yod_request_ce, object, ZEND_STRL("controller"), controller TSRMLS_CC);
 
-			/* params */
-			while (name = php_strtok_r(NULL, "/", &token)) {
-				name_len = strlen(name);
-				if (name_len) {
-					MAKE_STD_ZVAL(pzval);
-					value = php_strtok_r(NULL, "/", &token);
-					if (value && strlen(value)) {
-						ZVAL_STRING(pzval, value, 1);
-					} else {
-						ZVAL_NULL(pzval);
-					}
-					zend_hash_update(Z_ARRVAL_P(params), name, name_len + 1, (void **)&pzval, sizeof(zval *), NULL);
-					if (HASH_OF(PG(http_globals)[TRACK_VARS_GET])) {
-						zend_hash_update(HASH_OF(PG(http_globals)[TRACK_VARS_GET]), name, name_len + 1, (void **)&pzval, sizeof(zval *), NULL);
-					}
-					if (_REQUEST && Z_TYPE_PP(_REQUEST) == IS_ARRAY) {
-						zend_hash_update(Z_ARRVAL_PP(_REQUEST), name, name_len + 1, (void **)&pzval, sizeof(zval *), NULL);
+			/* action */
+			action = php_strtok_r(NULL, "/", &token);
+			if (!action) {
+				zend_update_property_string(yod_request_ce, object, ZEND_STRL("action"), "index" TSRMLS_CC);
+			} else {
+				zend_str_tolower(action, strlen(action));
+				zend_update_property_string(yod_request_ce, object, ZEND_STRL("action"), action TSRMLS_CC);
+
+				/* params */
+				while (name = php_strtok_r(NULL, "/", &token)) {
+					name_len = strlen(name);
+					if (name_len) {
+						MAKE_STD_ZVAL(pzval);
+						value = php_strtok_r(NULL, "/", &token);
+						if (value && strlen(value)) {
+							ZVAL_STRING(pzval, value, 1);
+						} else {
+							ZVAL_NULL(pzval);
+						}
+						zend_hash_update(Z_ARRVAL_P(params), name, name_len + 1, (void **)&pzval, sizeof(zval *), NULL);
+						if (HASH_OF(PG(http_globals)[TRACK_VARS_GET])) {
+							zend_hash_update(HASH_OF(PG(http_globals)[TRACK_VARS_GET]), name, name_len + 1, (void **)&pzval, sizeof(zval *), NULL);
+						}
+						if (_REQUEST && Z_TYPE_PP(_REQUEST) == IS_ARRAY) {
+							zend_hash_update(Z_ARRVAL_PP(_REQUEST), name, name_len + 1, (void **)&pzval, sizeof(zval *), NULL);
+						}
 					}
 				}
 			}
@@ -686,7 +739,7 @@ int yod_request_dispatch(yod_request_t *object TSRMLS_DC) {
 		yod_controller_construct(target, object, NULL, 0 TSRMLS_CC);
 	} else {
 		runpath = yod_runpath(TSRMLS_C);
-		spprintf(&classpath, 0, "%s/%s/%sController.php", runpath, YOD_DIR_CONTROLLER, controller1);
+		spprintf(&classpath, 0, "%s/%s/%s/%sController.php", runpath, YOD_G(modname), YOD_DIR_CONTROLLER, controller1);
 		if (VCWD_ACCESS(classpath, F_OK) == 0) {
 			yod_include(classpath, NULL, 1 TSRMLS_CC);
 #if PHP_API_VERSION < 20100412
@@ -714,7 +767,7 @@ int yod_request_dispatch(yod_request_t *object TSRMLS_DC) {
 				action1_len = spprintf(&action1, 0, "index");
 			}
 			zend_str_tolower(controller1, controller1_len);
-			spprintf(&classpath, 0, "%s/actions/%s/%sAction.php", runpath, controller1, action1);
+			spprintf(&classpath, 0, "%s/%s/Action/%s/%sAction.php", runpath, YOD_G(modname), controller1, action1);
 			if (VCWD_ACCESS(classpath, F_OK) == 0) {
 				efree(classname);
 				yod_include(classpath, NULL, 1 TSRMLS_CC);
@@ -737,7 +790,7 @@ int yod_request_dispatch(yod_request_t *object TSRMLS_DC) {
 				}
 			} else {
 				efree(classpath);
-				spprintf(&classpath, 0, "%s/%s/ErrorController.php", runpath, YOD_DIR_CONTROLLER);
+				spprintf(&classpath, 0, "%s/%s/%s/ErrorController.php", runpath, YOD_G(modname), YOD_DIR_CONTROLLER);
 				if (VCWD_ACCESS(classpath, F_OK) == 0) {
 					yod_include(classpath, NULL, 1 TSRMLS_CC);
 #if PHP_API_VERSION < 20100412
@@ -947,6 +1000,7 @@ PHP_MINIT_FUNCTION(yod_request) {
 	zend_declare_property_bool(yod_request_ce, ZEND_STRL("_routed"), 0, ZEND_ACC_PROTECTED TSRMLS_CC);
 	zend_declare_property_bool(yod_request_ce, ZEND_STRL("_dispatched"), 0, ZEND_ACC_PROTECTED TSRMLS_CC);
 	zend_declare_property_null(yod_request_ce, ZEND_STRL("uri"), ZEND_ACC_PUBLIC TSRMLS_CC);
+	zend_declare_property_null(yod_request_ce, ZEND_STRL("module"), ZEND_ACC_PUBLIC TSRMLS_CC);
 	zend_declare_property_null(yod_request_ce, ZEND_STRL("controller"), ZEND_ACC_PUBLIC TSRMLS_CC);
 	zend_declare_property_null(yod_request_ce, ZEND_STRL("action"), ZEND_ACC_PUBLIC TSRMLS_CC);
 	zend_declare_property_null(yod_request_ce, ZEND_STRL("params"), ZEND_ACC_PUBLIC TSRMLS_CC);

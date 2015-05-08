@@ -51,6 +51,10 @@ ZEND_BEGIN_ARG_INFO_EX(yod_model_getinstance_arginfo, 0, 0, 0)
 	ZEND_ARG_INFO(0, config)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(yod_model_table_arginfo, 0, 0, 1)
+	ZEND_ARG_INFO(0, table)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(yod_model_find_arginfo, 0, 0, 0)
 	ZEND_ARG_INFO(0, where)
 	ZEND_ARG_INFO(0, params)
@@ -212,7 +216,7 @@ int yod_model_construct(yod_model_t *object, char *name, uint name_len, zval *co
 int yod_model_getinstance(char *name, uint name_len, zval *config, zval *retval TSRMLS_DC) {
 	yod_model_t *object;
 	zval *model, *model1, *name1, *pzval, **ppval;
-	char *upname, *classname, *classpath;
+	char *upname, *classname, *classpath, *classpath1;
 	uint classname_len;
 	zend_class_entry **pce = NULL;
 
@@ -242,7 +246,14 @@ int yod_model_getinstance(char *name, uint name_len, zval *config, zval *retval 
 
 	MAKE_STD_ZVAL(object);
 	if (name_len > 0) {
-		spprintf(&classpath, 0, "%s/%s/%s.php", yod_runpath(TSRMLS_C), YOD_DIR_MODEL, classname);
+		spprintf(&classpath, 0, "%s/%s/%s/%s.php", yod_runpath(TSRMLS_C), YOD_G(modname), YOD_DIR_MODEL, classname);
+		if (VCWD_ACCESS(classpath, F_OK) != 0) {
+			spprintf(&classpath1, 0, "%s/%s/%s.php", yod_runpath(TSRMLS_C), YOD_DIR_MODEL, classname);
+			if (classpath) {
+				efree(classpath);
+			}
+			classpath = classpath1;
+		}
 		if (VCWD_ACCESS(classpath, F_OK) == 0) {
 			yod_include(classpath, &pzval, 1 TSRMLS_CC);
 #if PHP_API_VERSION < 20100412
@@ -361,6 +372,27 @@ PHP_METHOD(yod_model, getInstance) {
 	}
 
 	yod_model_getinstance(name, name_len, config, return_value TSRMLS_CC);
+}
+/* }}} */
+
+/** {{{ proto public Yod_Model::table($table)
+*/
+PHP_METHOD(yod_model, table) {
+	yod_model_t *object;
+	char *table = NULL;
+	uint table_len = 0;
+
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &table, &table_len) == FAILURE) {
+		return;
+	}
+
+	object = getThis();
+
+	if (table_len) {
+		zend_update_property_stringl(Z_OBJCE_P(object), object, ZEND_STRL("_table"), table, table_len TSRMLS_CC);
+	}
+
+	RETURN_ZVAL(object, 1, 0);
 }
 /* }}} */
 
@@ -870,6 +902,7 @@ zend_function_entry yod_model_methods[] = {
 	PHP_ME(yod_model, __construct,		yod_model_construct_arginfo,	ZEND_ACC_PUBLIC|ZEND_ACC_CTOR)
 	PHP_ME(yod_model, init,				yod_model_init_arginfo,			ZEND_ACC_PROTECTED)
 	PHP_ME(yod_model, getInstance,		yod_model_getinstance_arginfo,	ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
+	PHP_ME(yod_model, table,			yod_model_table_arginfo,		ZEND_ACC_PUBLIC)
 	PHP_ME(yod_model, find,				yod_model_find_arginfo,			ZEND_ACC_PUBLIC)
 	PHP_ME(yod_model, select,			yod_model_select_arginfo,		ZEND_ACC_PUBLIC)
 	PHP_ME(yod_model, count,			yod_model_count_arginfo,		ZEND_ACC_PUBLIC)

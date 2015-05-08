@@ -12,8 +12,9 @@ defined('YOD_RUNMODE') or define('YOD_RUNMODE', 1);
 define('TESTS_PATH', dirname(__FILE__));
 include TESTS_PATH . '/clean.php';
 
-is_dir(TESTS_PATH . '/models') or mkdir(TESTS_PATH . '/models');
-file_put_contents(TESTS_PATH . '/models/TestsModel.php', <<<PHP
+is_dir(TESTS_PATH . '/Home') or mkdir(TESTS_PATH . '/Home');
+is_dir(TESTS_PATH . '/Home/Model') or mkdir(TESTS_PATH . '/Home/Model');
+file_put_contents(TESTS_PATH . '/Home/Model/TestsModel.php', <<<PHP
 <?php
 class TestsModel extends Yod_Model
 {

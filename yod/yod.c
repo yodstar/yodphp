@@ -314,6 +314,32 @@ char *yod_charset(TSRMLS_D) {
 }
 /* }}} */
 
+/** {{{ char *yod_modules(TSRMLS_D)
+*/
+char *yod_modules(TSRMLS_D) {
+	zval modules;
+	uint modules_len;
+
+	if (!YOD_G(modules)) {
+		if (zend_get_constant(ZEND_STRL("YOD_MODULES"), &modules TSRMLS_CC)) {
+			convert_to_string(&modules);
+			modules_len = Z_STRLEN(modules);
+			YOD_G(modules) = estrndup(Z_STRVAL(modules), modules_len);
+			zval_dtor(&modules);
+		} else {
+			INIT_ZVAL(modules);
+			modules_len = sizeof(YOD_MODULES) - 1;
+			ZVAL_STRINGL(&modules, YOD_MODULES, modules_len, 1);
+			YOD_G(modules) = estrndup(YOD_MODULES, modules_len);
+			zend_register_string_constant(ZEND_STRS("YOD_MODULES"), Z_STRVAL(modules), CONST_CS, 0 TSRMLS_CC);
+		}
+		zend_str_tolower(YOD_G(modules), modules_len);
+	}
+
+	return YOD_G(modules);
+}
+/* }}} */
+
 /** {{{ char *yod_viewext(TSRMLS_D)
 */
 char *yod_viewext(TSRMLS_D) {
@@ -418,41 +444,6 @@ char *yod_runpath(TSRMLS_D) {
 	}
 
 	return YOD_G(runpath);
-}
-/* }}} */
-
-/** {{{ char *yod_extpath(TSRMLS_D)
-*/
-char *yod_extpath(TSRMLS_D) {
-	zval extpath, runpath;
-	uint extpath_len;
-	char *runfile;
-
-	if (!YOD_G(extpath)) {
-		if (zend_get_constant(ZEND_STRL("YOD_EXTPATH"), &extpath TSRMLS_CC)) {
-			convert_to_string(&extpath);
-			YOD_G(extpath) = estrndup(Z_STRVAL(extpath), Z_STRLEN(extpath));
-			zval_dtor(&extpath);
-		} else if (zend_get_constant(ZEND_STRL("YOD_RUNPATH"), &runpath TSRMLS_CC)) {
-			convert_to_string(&runpath);
-			YOD_G(extpath) = estrndup(Z_STRVAL(runpath), Z_STRLEN(runpath));
-			zval_dtor(&runpath);
-		} else {
-			INIT_ZVAL(extpath);
-			runfile = yod_runfile(TSRMLS_C);
-			extpath_len = strlen(runfile);
-			YOD_G(extpath) = estrndup(runfile, extpath_len);
-			extpath_len = php_dirname(YOD_G(extpath), extpath_len);
-			ZVAL_STRINGL(&extpath, YOD_G(extpath), extpath_len, 1);
-			zend_register_stringl_constant(ZEND_STRS("YOD_EXTPATH"), Z_STRVAL(extpath), extpath_len, CONST_CS, 0 TSRMLS_CC);
-		}
-	
-#if PHP_YOD_DEBUG
-		yod_debugf("yod_extpath():%s", YOD_G(extpath));
-#endif
-	}
-
-	return YOD_G(extpath);
 }
 /* }}} */
 
@@ -603,7 +594,11 @@ void yod_init_config(TSRMLS_D) {
 
 	MAKE_STD_ZVAL(YOD_G(config));
 
+#if PHP_API_VERSION > 20041225
 	array_init_size(YOD_G(config), zend_hash_num_elements(Z_ARRVAL_P(config)));
+#else
+	array_init(YOD_G(config));
+#endif
 
 	zend_hash_internal_pointer_reset_ex(Z_ARRVAL_P(config), &pos);
 	while (zend_hash_get_current_data_ex(Z_ARRVAL_P(config), (void **)&data, &pos) == SUCCESS) {
@@ -667,7 +662,6 @@ void yod_init_startup(TSRMLS_D) {
 	yod_viewext(TSRMLS_C);
 	yod_pathvar(TSRMLS_C);
 	yod_runpath(TSRMLS_C);
-	yod_extpath(TSRMLS_C);
 	yod_logpath(TSRMLS_C);
 
 	yod_init_register(TSRMLS_C);
@@ -844,6 +838,7 @@ PHP_GINIT_FUNCTION(yod)
 	yod_globals->forward	= 0;
 	yod_globals->runmode	= 0;
 	yod_globals->charset	= NULL;
+	yod_globals->modules	= NULL;
 	yod_globals->viewext	= NULL;
 	yod_globals->pathvar	= NULL;
 	yod_globals->runpath	= NULL;
@@ -860,6 +855,7 @@ PHP_GINIT_FUNCTION(yod)
 	yod_globals->startup	= 0;
 	yod_globals->autorun	= 0;
 	yod_globals->runfile	= NULL;
+	yod_globals->modname	= NULL;
 
 #if PHP_YOD_DEBUG
 	yod_globals->debugs		= NULL;
@@ -946,6 +942,7 @@ PHP_RINIT_FUNCTION(yod)
 	YOD_G(forward)			= 0;
 	YOD_G(runmode)			= 0;
 	YOD_G(charset)			= NULL;
+	YOD_G(modules)			= NULL;
 	YOD_G(viewext)			= NULL;
 	YOD_G(pathvar)			= NULL;
 	YOD_G(runpath)			= NULL;
@@ -966,6 +963,7 @@ PHP_RINIT_FUNCTION(yod)
 	YOD_G(startup)			= 0;
 	YOD_G(autorun)			= 0;
 	YOD_G(runfile)			= NULL;
+	YOD_G(modname)			= estrndup("Home", 4);
 
 #if PHP_YOD_DEBUG
 	MAKE_STD_ZVAL(YOD_G(debugs));
@@ -993,6 +991,11 @@ PHP_RSHUTDOWN_FUNCTION(yod)
 	if (YOD_G(charset)) {
 		efree(YOD_G(charset));
 		YOD_G(charset) = NULL;
+	}
+
+	if (YOD_G(modules)) {
+		efree(YOD_G(modules));
+		YOD_G(modules) = NULL;
 	}
 
 	if (YOD_G(viewext)) {
@@ -1044,7 +1047,12 @@ PHP_RSHUTDOWN_FUNCTION(yod)
 		efree(YOD_G(runfile));
 		YOD_G(runfile) = NULL;
 	}
-	
+
+	if (YOD_G(modname)) {
+		efree(YOD_G(modname));
+		YOD_G(modname) = NULL;
+	}
+
 #if PHP_YOD_DEBUG
 	if (YOD_G(debugs)) {
 		zval_ptr_dtor(&YOD_G(debugs));

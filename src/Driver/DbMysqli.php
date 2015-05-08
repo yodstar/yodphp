@@ -108,19 +108,10 @@ class Yod_DbMysqli extends Yod_Database
 				return $affected ? $this->_linkid->affected_rows : true;
 			}
 		} else {
-			$bind_params = array();
-			$bind_params[0] = '';
-			foreach ($params as $key => $value) {
-				if (strstr($query, $key)) {
-					$bind_params[0] .= 's';
-					$bind_params[strpos($query, $key)] = &$params[$key];
-					$query = str_replace($key, '?', $query);
-				}
-			}
-			ksort($bind_params);
 			if ($mysqli_stmt = $this->_linkid->prepare($query)) {
-				if (count($bind_params) > 1) {
-					call_user_func_array(array($mysqli_stmt, 'bind_param'), $bind_params);
+				if (count($params) > 1) {
+					array_unshift($params, 's');
+					call_user_func_array(array($mysqli_stmt, 'bind_param'), $params);
 				}
 				if ($mysqli_stmt->execute()) {
 					if ($affected) {
@@ -154,49 +145,23 @@ class Yod_DbMysqli extends Yod_Database
 		if (empty($params)){
 			return $this->_result = $this->_linkid->query($query);
 		} else {
-			if (method_exists('mysqli_stmt', '_get_result')) {
-				$bind_params = array();
-				$bind_params[0] = '';
-				foreach ($params as $key => $value) {
-					if (strstr($query, $key)) {
-						$bind_params[0] .= 's';
-						$bind_params[strpos($query, $key)] = &$params[$key];
-						$query = str_replace($key, '?', $query);
-					}
+			if ($mysqli_stmt = $this->_linkid->prepare($query)) {
+				if (count($params) > 1) {
+					array_unshift($params, 's');
+					call_user_func_array(array($mysqli_stmt, 'bind_param'), $params);
 				}
-				ksort($bind_params);
-				if ($mysqli_stmt = $this->_linkid->prepare($query)) {
-					if (count($bind_params) > 1) {
-						call_user_func_array(array($mysqli_stmt, 'bind_param'), $bind_params);
-					}
-					if ($mysqli_stmt->execute()) {
-						if ($result = $mysqli_stmt->get_result()) {
-							$this->_result = $result;
-						} else {
-							$result = $mysqli_stmt->affected_rows;
-						}
-						$mysqli_stmt->close();
-						return $result;
-					}
-					$this->_errno = $mysqli_stmt->errno();
-					$this->_error = $mysqli_stmt->error();
-					$mysqli_stmt->close();
-				}
-			} else {
-				foreach ($params as $key => $value) {
-					if (strstr($query, $key)) {
-						$value = $this->_linkid->real_escape_string($value);
-						$query = str_replace($key, "'{$value}'", $query);
-					}
-				}
-				if ($result = $this->_linkid->query($query)) {
-					if ($result instanceof mysqli_result) {
+				if ($mysqli_stmt->execute()) {
+					if ($result = $mysqli_stmt->get_result()) {
 						$this->_result = $result;
 					} else {
-						$result = $this->_linkid->affected_rows;
+						$result = $mysqli_stmt->affected_rows;
 					}
+					$mysqli_stmt->close();
 					return $result;
 				}
+				$this->_errno = $mysqli_stmt->errno();
+				$this->_error = $mysqli_stmt->error();
+				$mysqli_stmt->close();
 			}
 		}
 

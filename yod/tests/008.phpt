@@ -16,8 +16,8 @@ defined('YOD_RUNMODE') or define('YOD_RUNMODE', 1);
 define('TESTS_PATH', dirname(__FILE__));
 include TESTS_PATH . '/clean.php';
 
-is_dir(TESTS_PATH . '/configs') or mkdir(TESTS_PATH . '/configs');
-file_put_contents(TESTS_PATH . '/configs/db_dsn.config.php', <<<PHP
+is_dir(TESTS_PATH . '/Config') or mkdir(TESTS_PATH . '/Config');
+file_put_contents(TESTS_PATH . '/Config/db_dsn.config.php', <<<PHP
 <?php
 return array(
 	'type' => 'pdo',
@@ -35,7 +35,7 @@ return array(
 PHP
 );
 
-file_put_contents(TESTS_PATH . '/configs/tpl_data.config.php', <<<PHP
+file_put_contents(TESTS_PATH . '/Config/tpl_data.config.php', <<<PHP
 <?php
 return array(
 	'_PUBLIC_' => '/Public/',

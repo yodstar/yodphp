@@ -51,6 +51,7 @@ IndexController Object
             [_routed:protected] => 1
             [_dispatched:protected] => 1
             [uri] => 
+            [module] => Home
             [controller] => Index
             [action] => index
             [params] => Array

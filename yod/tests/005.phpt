@@ -12,9 +12,10 @@ defined('YOD_RUNMODE') or define('YOD_RUNMODE', 1);
 define('TESTS_PATH', dirname(__FILE__));
 include TESTS_PATH . '/clean.php';
 
-is_dir(TESTS_PATH . '/actions') or mkdir(TESTS_PATH . '/actions');
-is_dir(TESTS_PATH . '/actions/index') or mkdir(TESTS_PATH . '/actions/index');
-file_put_contents(TESTS_PATH . '/actions/index/IndexAction.php', <<<PHP
+is_dir(TESTS_PATH . '/Home') or mkdir(TESTS_PATH . '/Home');
+is_dir(TESTS_PATH . '/Home/Action') or mkdir(TESTS_PATH . '/Home/Action');
+is_dir(TESTS_PATH . '/Home/Action/index') or mkdir(TESTS_PATH . '/Home/Action/index');
+file_put_contents(TESTS_PATH . '/Home/Action/index/IndexAction.php', <<<PHP
 <?php
 class IndexAction extends Yod_Action
 {
@@ -32,8 +33,8 @@ class IndexAction extends Yod_Action
 PHP
 );
 
-is_dir(TESTS_PATH . '/extends') or mkdir(TESTS_PATH . '/extends');
-file_put_contents(TESTS_PATH . '/extends/Tests.class.php', <<<PHP
+is_dir(TESTS_PATH . '/Extend') or mkdir(TESTS_PATH . '/Extend');
+file_put_contents(TESTS_PATH . '/Extend/Tests.php', <<<PHP
 <?php
 class Tests
 {
@@ -46,9 +47,9 @@ class Tests
 PHP
 );
 
-is_dir(TESTS_PATH . '/views') or mkdir(TESTS_PATH . '/views');
-is_dir(TESTS_PATH . '/views/tests') or mkdir(TESTS_PATH . '/views/tests');
-file_put_contents(TESTS_PATH . '/views/tests/widget.php', <<<PHP
+is_dir(TESTS_PATH . '/Home/View') or mkdir(TESTS_PATH . '/Home/View');
+is_dir(TESTS_PATH . '/Home/View/tests') or mkdir(TESTS_PATH . '/Home/View/tests');
+file_put_contents(TESTS_PATH . '/Home/View/tests/widget.php', <<<PHP
 <?php echo \$yodphp; ?>
 
 <?php \$this->widget('public/header'); ?>
@@ -60,9 +61,9 @@ file_put_contents(TESTS_PATH . '/views/tests/widget.php', <<<PHP
 PHP
 );
 
-is_dir(TESTS_PATH . '/widgets') or mkdir(TESTS_PATH . '/widgets');
-is_dir(TESTS_PATH . '/widgets/public') or mkdir(TESTS_PATH . '/widgets/public');
-file_put_contents(TESTS_PATH . '/widgets/PublicWidget.php', <<<PHP
+is_dir(TESTS_PATH . '/Widget') or mkdir(TESTS_PATH . '/Widget');
+is_dir(TESTS_PATH . '/Widget/public') or mkdir(TESTS_PATH . '/Widget/public');
+file_put_contents(TESTS_PATH . '/Widget/PublicWidget.php', <<<PHP
 <?php
 class PublicWidget extends Yod_Widget
 {
@@ -80,8 +81,8 @@ class PublicWidget extends Yod_Widget
 PHP
 );
 
-file_put_contents(TESTS_PATH . '/widgets/public/header.php', 'Header');
-file_put_contents(TESTS_PATH . '/widgets/public/footer.php', "Footer\r\n");
+file_put_contents(TESTS_PATH . '/Widget/public/header.php', 'Header');
+file_put_contents(TESTS_PATH . '/Widget/public/footer.php', "Footer\r\n");
 
 define('YOD_RUNPATH', dirname(__FILE__));
 

@@ -103,6 +103,10 @@ Yod_Model Object
         )
 
     [_dsn:protected] => db_dsn
+    [_data:protected] => Array
+        (
+        )
+
     [_name:protected] => 
     [_table:protected] => 
     [_prefix:protected] => yod_

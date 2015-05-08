@@ -19,6 +19,8 @@
 #ifndef PHP_YOD_SERVER_H
 #define PHP_YOD_SERVER_H
 
+//#define PHP_YOD_SERVER_INPUT "input"
+
 extern zend_class_entry *yod_server_ce;
 
 PHP_MINIT_FUNCTION(yod_server);

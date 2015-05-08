@@ -1,4 +1,18 @@
-This file documents changes for Yod Framework release 1.3.6 and earlier.
+This file documents changes for Yod Framework release 1.4.0 and earlier.
+
+version 1.4.0:
+
+  - Add a public method table in the class Yod_Model
+  - Add a constant YOD_MODULES and support module
+  - Change the directory structure (support module)
+  - Delete the constant YOD_EXTPATH
+  - Modify the method import, plugin and autoload of class Yod_Base
+  - Modify the method handle of class Yod_Server (support sub directory)
+  - Modify the method select and delete of class Yod_Database (compatible with PHP5.2)
+
+version 1.3.7:
+
+  - Add a public method table in the class Yod_Model
 
 version 1.3.6:
 

@@ -214,9 +214,9 @@ static void yod_controller_run(yod_controller_t *object TSRMLS_DC) {
 		if (cname && Z_TYPE_P(cname) == IS_STRING && Z_STRLEN_P(cname)) {
 			zend_str_tolower(Z_STRVAL_P(cname), Z_STRLEN_P(cname));
 			zend_update_property(Z_OBJCE_P(object), object, ZEND_STRL("_name"), cname TSRMLS_CC);
-			spprintf(&classpath, 0, "%s/actions/%s/%s.php", yod_runpath(TSRMLS_C), Z_STRVAL_P(cname), classname);
+			spprintf(&classpath, 0, "%s/%s/%s/%s/%s.php", yod_runpath(TSRMLS_C), YOD_G(modname), YOD_DIR_ACTION, Z_STRVAL_P(cname), classname);
 		} else {
-			spprintf(&classpath, 0, "%s/actions/index/%s.php", yod_runpath(TSRMLS_C), classname);
+			spprintf(&classpath, 0, "%s/%s/%s/index/%s.php", yod_runpath(TSRMLS_C), YOD_G(modname), YOD_DIR_ACTION, classname);
 		}
 
 		if (VCWD_ACCESS(classpath, F_OK) == 0) {
@@ -300,7 +300,7 @@ void yod_controller_construct(yod_controller_t *object, yod_request_t *request, 
 			array_init(tpl_data);
 		}
 	}
-	spprintf(&tpl_path, 0, "%s/%s", yod_runpath(TSRMLS_C), YOD_DIR_VIEW);
+	spprintf(&tpl_path, 0, "%s/%s/%s", yod_runpath(TSRMLS_C), YOD_G(modname), YOD_DIR_VIEW);
 	MAKE_STD_ZVAL(tpl_view);
 	array_init(tpl_view);
 	add_assoc_zval_ex(tpl_view, ZEND_STRS("tpl_data"), tpl_data);

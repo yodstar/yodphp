@@ -83,9 +83,15 @@ void yod_server_handle(yod_server_t *object TSRMLS_DC) {
 	zval *result, *handle, *params, *func1, *data, *extra, *target;
 	zval *input1, *reqest, *output, *output1, *pzval, **ppval, **data1;
 
-	char *input, *errmsg, *method, *handle1, *classname, *classpath;
-	int input_len, errmsg_len, method_len, handle1_len, classname_len;
-	int debug = 0;
+	char *input, *errmsg, *method, *classname, *handle1, *handle2, *classpath;
+	int input_len, errmsg_len, method_len, classname_len, handle1_len, handle2_len;
+
+#ifdef PHP_YOD_SERVER_INPUT
+	char *input2;
+#endif
+
+	char *p1, *p2;
+	int slash, debug = 0;
 
 	long maxlen = PHP_STREAM_COPY_ALL;
 
@@ -108,7 +114,13 @@ void yod_server_handle(yod_server_t *object TSRMLS_DC) {
 		return;
 	}
 
+#ifdef PHP_YOD_SERVER_INPUT
+	spprintf(&input2, 0, "%s/%s", yod_runpath(TSRMLS_C), PHP_YOD_SERVER_INPUT);
+	stream1  = php_stream_open_wrapper_ex(input2,  "rb", 0, NULL, context1);
+	efree(input2);
+#else
 	stream1  = php_stream_open_wrapper_ex("php://input",  "rb", 0, NULL, context1);
+#endif
 	if (!stream1) {
 		return;
 	}
@@ -175,22 +187,74 @@ void yod_server_handle(yod_server_t *object TSRMLS_DC) {
 		Z_TYPE_PP(ppval) == IS_STRING && Z_STRLEN_PP(ppval) > 0
 	) {
 		handle1_len = spprintf(&handle1, 0, "%s", Z_STRVAL_PP(ppval));
-		zend_str_tolower(handle1, handle1_len);
-		*handle1 = toupper(*handle1);
-		classname_len = spprintf(&classname, 0, "%sService", handle1);
-		
+		handle2 = safe_emalloc(handle1_len, sizeof(char), 0);
+
+		/* filter slash */
+		slash = 1;
+		p1 = handle1;
+		p2 = handle2;
+		handle2_len = 0;
+		while (*p1 != '\0') {
+			if (*p1 == '/' || *p1 == '.') {
+				if (slash == 0) {
+					slash = 1;
+					*p2 = *p1;
+					p2++;
+					handle2_len++;
+				}
+			} else {
+				if (slash == 0) {
+					*p2 = *p1;
+					p2++;
+					handle2_len++;
+				} else {
+					slash = 0;
+					*p2 = *p1;
+					p2++;
+					handle2_len++;
+				}
+			}
+			p1++;
+		}
+		while (*(--p2) == '/') {
+			handle2_len--;
+		}
+
+		/* classname */
+		classname_len = 0;
+		while (*p2 != '/') {
+			if (classname_len == handle2_len) {
+				break;
+			}
+			*p2 = tolower(*p2);
+			classname_len++;
+			p2--;
+		}
+		p2++;
+		*p2 = toupper(*p2);
+
+		/* handle */
+		p2 = estrndup(handle2, handle2_len);
+		efree(handle2);
+		handle2 = p2;
+
+		/* classname */
+		p2 = p2 + handle2_len - classname_len;
+		classname_len = spprintf(&classname, 0, "%sService", p2);
+
 		/* require */
 #if PHP_API_VERSION < 20100412
 		if (zend_lookup_class_ex(classname, classname_len, 0, &pce TSRMLS_CC) != SUCCESS) {
 #else
 		if (zend_lookup_class_ex(classname, classname_len, NULL, 0, &pce TSRMLS_CC) != SUCCESS) {
 #endif
-			spprintf(&classpath, 0, "%s/%s/%sService.php", yod_runpath(TSRMLS_C), YOD_DIR_SERVICE, handle1);
+			spprintf(&classpath, 0, "%s/%s/%sService.php", yod_runpath(TSRMLS_C), YOD_DIR_SERVICE, handle2);
 			if (VCWD_ACCESS(classpath, F_OK) == 0) {
 				yod_include(classpath, NULL, 1 TSRMLS_CC);
 			}
+			efree(classpath);
 		}
-		efree(classpath);
+		efree(handle2);
 		efree(handle1);
 
 		/* handle */
