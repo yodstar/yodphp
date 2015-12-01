@@ -44,10 +44,10 @@ make install
 
 ```
 + code
-	+ Action	// Other action
 	+ Config
 		- config.php	// Configure 
 	+ Home	// Default module
+		+ Action	// Other action
 		+ Controller
 			- IndexController.php	// Default controller
 		+ Model
@@ -55,11 +55,13 @@ make install
 		+ View
 			+ index	// View templates for default controller
 				- index.php
+		+ Widget
+			- PublicWidget.php	// Public widget
+			+ public
 	+ Extend
 	+ Model
 	+ Plugin
 	+ Service
-	+ Widget
 	- index.php	// Application entry
 + data
 + html
@@ -165,7 +167,7 @@ return array(
 		'index/rule1' => 'index/rule1/id/1',
 		'index/rule2/:id' => 'index/rule2',
 		'index/rule3/:id/edit' => 'index/rule3/action/edit',
-		'index/rule4/:id/remove' => array('index/rule4', array('action' => 'remove'),
+		'index/rule4/:id/remove' => array('index/rule4', array('action' => 'remove')),
 	),
 );
 

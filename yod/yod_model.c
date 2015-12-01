@@ -246,9 +246,9 @@ int yod_model_getinstance(char *name, uint name_len, zval *config, zval *retval 
 
 	MAKE_STD_ZVAL(object);
 	if (name_len > 0) {
-		spprintf(&classpath, 0, "%s/%s/%s/%s.php", yod_runpath(TSRMLS_C), YOD_G(modname), YOD_DIR_MODEL, classname);
+		spprintf(&classpath, 0, "%s/%s/%s.php", yod_libpath(TSRMLS_C), YOD_DIR_MODEL, classname);
 		if (VCWD_ACCESS(classpath, F_OK) != 0) {
-			spprintf(&classpath1, 0, "%s/%s/%s.php", yod_runpath(TSRMLS_C), YOD_DIR_MODEL, classname);
+			spprintf(&classpath1, 0, "%s/%s/%s/%s.php", yod_runpath(TSRMLS_C), YOD_G(modname), YOD_DIR_MODEL, classname);
 			if (classpath) {
 				efree(classpath);
 			}
@@ -396,12 +396,12 @@ PHP_METHOD(yod_model, table) {
 }
 /* }}} */
 
-/** {{{ proto public Yod_Model::find($where = null, $params = array(), $select = '*')
+/** {{{ proto public Yod_Model::find($where = null, $params = array(), $select = null)
 */
 PHP_METHOD(yod_model, find) {
 	yod_database_t *yoddb;
 	yod_model_t *object;
-	zval *table, *result, *retval;
+	zval *table, *fields, *select1, *result, *retval;
 	zval *where = NULL, *params = NULL, *select = NULL;
 	char *where1 = NULL;
 	uint where1_len = 0;
@@ -437,14 +437,28 @@ PHP_METHOD(yod_model, find) {
 				where1_len = spprintf(&where1, 0, "id = %ld", Z_LVAL_P(where));
 			}
 		}
+
+		MAKE_STD_ZVAL(select1);
+		if (select && (Z_TYPE_P(select) == IS_STRING || Z_TYPE_P(select) == IS_ARRAY)) {
+			ZVAL_ZVAL(select1, select, 1, 0);
+		} else {
+			fields = zend_read_property(Z_OBJCE_P(object), object, ZEND_STRL("_fields"), 1 TSRMLS_CC);
+			if (fields && (Z_TYPE_P(fields) == IS_STRING || Z_TYPE_P(fields) == IS_ARRAY)) {
+				ZVAL_ZVAL(select1, fields, 1, 0);
+			} else {
+				ZVAL_NULL(select1);
+			}
+		}
+
 		MAKE_STD_ZVAL(result);
-		yod_database_select(yoddb, select, Z_STRVAL_P(table), Z_STRLEN_P(table), where1, where1_len, params, ZEND_STRL("LIMIT 1"), result TSRMLS_CC);
+		yod_database_select(yoddb, select1, Z_STRVAL_P(table), Z_STRLEN_P(table), where1, where1_len, params, ZEND_STRL("LIMIT 1"), result TSRMLS_CC);
+		zval_ptr_dtor(&select1);
 		if (where1) {
 			efree(where1);
 		}
 		if (result) {
 			zend_call_method_with_1_params(&yoddb, Z_OBJCE_P(yoddb), NULL, "fetch", &retval, result);
-			zend_call_method_with_0_params(&yoddb, Z_OBJCE_P(yoddb), NULL, "free", NULL);
+			zend_call_method_with_1_params(&yoddb, Z_OBJCE_P(yoddb), NULL, "free", NULL, result);
 			zval_ptr_dtor(&result);
 			if (retval) {
 				zend_update_property(Z_OBJCE_P(object), object, ZEND_STRL("_data"), retval TSRMLS_CC);
@@ -457,12 +471,12 @@ PHP_METHOD(yod_model, find) {
 }
 /* }}} */
 
-/** {{{ proto public Yod_Model::select($where = null, $params = array(), $select = '*')
+/** {{{ proto public Yod_Model::select($where = null, $params = array(), $select = null)
 */
 PHP_METHOD(yod_model, select) {
 	yod_database_t *yoddb;
 	yod_model_t *object;
-	zval *table, *result, *retval;
+	zval *table, *fields, *select1, *result, *retval;
 	zval *where = NULL, *params = NULL, *select = NULL;
 	char *where1 = NULL;
 	uint where1_len = 0;
@@ -498,14 +512,28 @@ PHP_METHOD(yod_model, select) {
 				where1_len = spprintf(&where1, 0, "id = %ld", Z_LVAL_P(where));
 			}
 		}
+
+		MAKE_STD_ZVAL(select1);
+		if (select && (Z_TYPE_P(select) == IS_STRING || Z_TYPE_P(select) == IS_ARRAY)) {
+			ZVAL_ZVAL(select1, select, 1, 0);
+		} else {
+			fields = zend_read_property(Z_OBJCE_P(object), object, ZEND_STRL("_fields"), 1 TSRMLS_CC);
+			if (fields && (Z_TYPE_P(fields) == IS_STRING || Z_TYPE_P(fields) == IS_ARRAY)) {
+				ZVAL_ZVAL(select1, fields, 1, 0);
+			} else {
+				ZVAL_NULL(select1);
+			}
+		}
+
 		MAKE_STD_ZVAL(result);
-		yod_database_select(yoddb, select, Z_STRVAL_P(table), Z_STRLEN_P(table), where1, where1_len, params, ZEND_STRL(""), result TSRMLS_CC);
+		yod_database_select(yoddb, select1, Z_STRVAL_P(table), Z_STRLEN_P(table), where1, where1_len, params, ZEND_STRL(""), result TSRMLS_CC);
+		zval_ptr_dtor(&select1);
 		if (where1) {
 			efree(where1);
 		}
 		if (result) {
 			zend_call_method_with_1_params(&yoddb, Z_OBJCE_P(yoddb), NULL, "fetchall", &retval, result);
-			zend_call_method_with_0_params(&yoddb, Z_OBJCE_P(yoddb), NULL, "free", NULL);
+			zend_call_method_with_1_params(&yoddb, Z_OBJCE_P(yoddb), NULL, "free", NULL, result);
 			zval_ptr_dtor(&result);
 			if (retval) {
 				RETURN_ZVAL(retval, 1, 1);
@@ -555,7 +583,7 @@ PHP_METHOD(yod_model, count) {
 		zval_ptr_dtor(&select);
 		if (result) {
 			zend_call_method_with_1_params(&yoddb, Z_OBJCE_P(yoddb), NULL, "fetch", &data, result);
-			zend_call_method_with_0_params(&yoddb, Z_OBJCE_P(yoddb), NULL, "free", NULL);
+			zend_call_method_with_1_params(&yoddb, Z_OBJCE_P(yoddb), NULL, "free", NULL, result);
 			zval_ptr_dtor(&result);
 			if (data) {
 				if (Z_TYPE_P(data) == IS_ARRAY &&
@@ -933,6 +961,7 @@ PHP_MINIT_FUNCTION(yod_model) {
 	zend_declare_property_null(yod_model_ce, ZEND_STRL("_data"), ZEND_ACC_PROTECTED TSRMLS_CC);
 	zend_declare_property_null(yod_model_ce, ZEND_STRL("_name"), ZEND_ACC_PROTECTED TSRMLS_CC);
 	zend_declare_property_null(yod_model_ce, ZEND_STRL("_table"), ZEND_ACC_PROTECTED TSRMLS_CC);
+	zend_declare_property_null(yod_model_ce, ZEND_STRL("_fields"), ZEND_ACC_PROTECTED TSRMLS_CC);
 	zend_declare_property_null(yod_model_ce, ZEND_STRL("_prefix"), ZEND_ACC_PROTECTED TSRMLS_CC);
 
 	return SUCCESS;

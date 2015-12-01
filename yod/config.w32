@@ -10,9 +10,9 @@ ARG_ENABLE("yod-debug", "enable yod debug mode", "no");
 if (PHP_YOD == "yes") {
 	if (PHP_YOD_CRYPT != "no") {
 		AC_DEFINE('PHP_YOD_CRYPT', 1, 'define to 1 if you want to running in crypt mode')
-	else
+	} else {
 		AC_DEFINE('PHP_YOD_CRYPT', 0, 'define to 1 if you want to running in crypt mode')
-	fi
+	}
 
 	if (PHP_YOD_DEBUG == "yes") {
 		AC_DEFINE('PHP_YOD_DEBUG', 1, 'define to 1 if you want to running in debug mode')

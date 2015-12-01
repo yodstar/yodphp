@@ -67,6 +67,10 @@ void yod_server_construct(yod_server_t *object, zval *handle TSRMLS_DC) {
 	yod_debugf("yod_server_construct()");
 #endif
 
+	if (!YOD_G(startup)) {
+		yod_init_startup(TSRMLS_C);
+	}
+
 	if (!object || !handle) {
 		return;
 	}
@@ -198,18 +202,18 @@ void yod_server_handle(yod_server_t *object TSRMLS_DC) {
 			if (*p1 == '/' || *p1 == '.') {
 				if (slash == 0) {
 					slash = 1;
-					*p2 = *p1;
+					*p2 = '/';
 					p2++;
 					handle2_len++;
 				}
 			} else {
 				if (slash == 0) {
-					*p2 = *p1;
+					*p2 = tolower(*p1);
 					p2++;
 					handle2_len++;
 				} else {
 					slash = 0;
-					*p2 = *p1;
+					*p2 = toupper(*p1);
 					p2++;
 					handle2_len++;
 				}
@@ -226,12 +230,10 @@ void yod_server_handle(yod_server_t *object TSRMLS_DC) {
 			if (classname_len == handle2_len) {
 				break;
 			}
-			*p2 = tolower(*p2);
 			classname_len++;
 			p2--;
 		}
 		p2++;
-		*p2 = toupper(*p2);
 
 		/* handle */
 		p2 = estrndup(handle2, handle2_len);
@@ -248,7 +250,7 @@ void yod_server_handle(yod_server_t *object TSRMLS_DC) {
 #else
 		if (zend_lookup_class_ex(classname, classname_len, NULL, 0, &pce TSRMLS_CC) != SUCCESS) {
 #endif
-			spprintf(&classpath, 0, "%s/%s/%sService.php", yod_runpath(TSRMLS_C), YOD_DIR_SERVICE, handle2);
+			spprintf(&classpath, 0, "%s/%s/%sService.php", yod_libpath(TSRMLS_C), YOD_DIR_SERVICE, handle2);
 			if (VCWD_ACCESS(classpath, F_OK) == 0) {
 				yod_include(classpath, NULL, 1 TSRMLS_CC);
 			}

@@ -11,13 +11,16 @@
 
 // yodphp constant
 defined('YOD_RUNTIME') or define('YOD_RUNTIME', microtime(true));
-defined('YOD_VERSION') or define('YOD_VERSION', '1.3.6');
+defined('YOD_VERSION') or define('YOD_VERSION', '1.4.1');
 defined('YOD_FORWARD') or define('YOD_FORWARD', 5);
 defined('YOD_RUNMODE') or define('YOD_RUNMODE', 3);
 defined('YOD_CHARSET') or define('YOD_CHARSET', 'utf-8');
 defined('YOD_MODULES') or define('YOD_MODULES', 'Home');
 defined('YOD_VIEWEXT') or define('YOD_VIEWEXT', '.php');
 defined('YOD_PATHVAR') or define('YOD_PATHVAR', '');
+
+// init_startup
+Yod_Base::init_startup();
 
 /**
  * Yod_Application
@@ -43,6 +46,7 @@ final class Yod_Application
 		}
 
 		defined('YOD_RUNPATH') or define('YOD_RUNPATH', dirname(__FILE__));
+		defined('YOD_LIBPATH') or define('YOD_LIBPATH', dirname(__FILE__));
 
 		// request
 		$this->_request = new Yod_Request();
@@ -71,15 +75,15 @@ final class Yod_Application
 	/**
 	 * app
 	 * @access public
-	 * @param mixed $config
+	 * @param void
 	 * @return Yod_Application
 	 */
-	public static function app($config = null)
+	public static function app()
 	{
 		if (self::$_app) {
 			return self::$_app;
 		}
-		return new self($config);
+		return new self();
 	}
 
 	/**
@@ -94,9 +98,9 @@ final class Yod_Application
 		if (YOD_RUNMODE & 4) {
 			echo $logdata;
 		}
-		if ((YOD_RUNMODE & 8) && defined('YOD_LOGPATH')) {
-			$logfile = YOD_LOGPATH . '/debugs.log';
-			is_dir(YOD_LOGPATH) or mkdir(YOD_LOGPATH);
+		if ((YOD_RUNMODE & 8) && defined('YOD_DATADIR')) {
+			$logfile = YOD_DATADIR . '/debug.log';
+			is_dir(YOD_DATADIR) or mkdir(YOD_DATADIR);
 			file_put_contents($logfile, $logdata, FILE_APPEND);
 		}
 	}
@@ -245,8 +249,8 @@ final class Yod_Request
 		}
 
 		if (empty($this->module)) {
-			$modules = explode(',', YOD_MODULES);
-			if (in_array($route[0], $modules)) {
+			$modules = explode(',', strtolower(YOD_MODULES));
+			if (in_array(strtolower($route[0]), $modules)) {
 				$this->module = ucfirst(strtolower(array_shift($route)));
 			} else {
 				$this->module = 'Home';
@@ -466,13 +470,13 @@ abstract class Yod_Controller
 	 * @param string $action
 	 * @return void
 	 */
-	public function __construct($request, $action = null)
+	public function __construct(Yod_Request $request, $action = null)
 	{
 		$this->_name = strtolower($request->controller);
 		$this->_action = empty($action) ? $request->action : strtolower($action);
 		$this->_request = $request;
-		$this->_view['tpl_path'] = YOD_RUNPATH . '/' . $request->module . '/views';
-		($tpl_data = $this->config('tpldata')) or ($tpl_data = $this->config('tpl_data'));
+		$this->_view['tpl_path'] = YOD_RUNPATH . '/' . $request->module . '/View';
+		($tpl_data = Yod::config('tpldata')) or ($tpl_data = Yod::config('tpl_data'));
 		if ($tpl_data) {
 			$this->_view['tpl_data'] = $tpl_data;
 		}
@@ -543,7 +547,7 @@ abstract class Yod_Controller
 	 * @param array $data
 	 * @return string
 	 */
-	protected function render($view = null, $data = array())
+	protected function render($view = null, array $data = array())
 	{
 		// tpl_file
 		$view = empty($view) ? $this->_action : $view;
@@ -593,7 +597,7 @@ abstract class Yod_Controller
 	 * @param array $data
 	 * @return void
 	 */
-	protected function display($view = null, $data = array())
+	protected function display($view = null, array $data = array())
 	{
 		headers_sent() or header('Content-type: text/html; charset=' . YOD_CHARSET);
 		echo $this->render($view, $data);
@@ -606,7 +610,7 @@ abstract class Yod_Controller
 	 * @param array $params
 	 * @return void
 	 */
-	protected function widget($route, $params = array())
+	protected function widget($route, array $params = array())
 	{
 		$route = str_replace('\\', '/', $route);
 		$route = str_replace('//', '/', $route);
@@ -627,7 +631,7 @@ abstract class Yod_Controller
 		if (class_exists($classname, false)) {
 			new $classname($this->_request, $action, $params1);
 		} else {
-			$classpath = YOD_RUNPATH . '/Widget/' . $widget . 'Widget.php';
+			$classpath = YOD_RUNPATH . '/' . $this->_request->module . '/Widget/' . $widget . 'Widget.php';
 			if (is_file($classpath)) {
 				require $classpath;
 				new $classname($this->_request, $action, $params);
@@ -724,14 +728,14 @@ abstract class Yod_Widget extends Yod_Controller
 	 * @param array $params
 	 * @return void
 	 */
-	public function __construct($request, $action = null, $params = null)
+	public function __construct(Yod_Request $request, $action = null, array $params = null)
 	{
 		$name = get_class($this);
 		$this->_name = strtolower(substr($name, 0, -6));
 		$this->_action = empty($action) ? 'index' : strtolower($action);
 		$this->_request = $request;
-		$this->_view['tpl_path'] = YOD_RUNPATH . '/Widget';
-		($tpl_data = $this->config('tpldata')) or ($tpl_data = $this->config('tpl_data'));
+		$this->_view['tpl_path'] = YOD_RUNPATH . '/' . $request->module . '/Widget';
+		($tpl_data = Yod::config('tpldata')) or ($tpl_data = Yod::config('tpl_data'));
 		if ($tpl_data) {
 			$this->_view['tpl_data'] = $tpl_data;
 		}
@@ -796,9 +800,10 @@ class Yod_Server
 		$result = array('server' => 'Yod_Server', 'status' => 0, 'data' => null, 'extra' => null);
 		if (!empty($request['handle'])) {
 			$handle = trim(str_replace('//', '/', str_replace('.', '/', $request['handle'])), '/');
-			$classname = ucfirst(strtolower(basename($handle))) . 'Service';
+			$handle = implode('/', array_map('ucfirst', explode('/', strtolower($handle))));
+			$classname = $handle . 'Service';
 			if (!class_exists($classname, false)) {
-				$classfile = YOD_RUNPATH . '/Service/' . $handle . 'Service.php';
+				$classfile = YOD_LIBPATH . '/Service/' . $handle . 'Service.php';
 				if (is_file($classfile)) {
 					require $classfile;
 				}
@@ -946,7 +951,7 @@ class Yod_Client
 	 * @param array 		$params
 	 * @return mixed
 	 */
-	public function __call($method, $params)
+	public function __call($method, array $params)
 	{
 		$post = array(
 			'client' => 'Yod_Client',
@@ -957,12 +962,8 @@ class Yod_Client
 		);
 		$data = $this->curl_post($post);
 		if (empty($data['status'])) {
-			if ($this->_debug) {
-				$error = print_r($this, true);
-			} else {
-				$error = empty($data['data']) ? $this->_data : $data['data'];
-				throw new Exception($error);
-			}
+			$error = empty($data['data']) ? 'Unknown error' : $data['data'];
+			throw new Exception($error);
 		} else {
 			if (isset($data['extra']) && is_array($data['extra'])) {
 				foreach ($data['extra'] as $name => $value) {
@@ -1033,11 +1034,21 @@ class Yod_Client
 		curl_setopt($ch, CURLOPT_POSTFIELDS, $this->encrypt($this->_params));
 		curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 		curl_setopt($ch, CURLOPT_HEADER, 0);
-		$data = $this->decrypt(curl_exec($ch));
+		$resp = curl_exec($ch);
+		$data = $this->decrypt($resp);
+		if (empty($data)) {
+			if ($this->_debug) {
+				echo '<fieldset style="width:75%"><legend><b>[ERROR]</b></legend>'. $resp .'</fieldset><br>';
+			}
+			return null;
+		}
 		if ($this->_debug) {
 			echo '<fieldset style="width:75%"><legend><b>[DEBUG]</b></legend>'. $data .'</fieldset><br>';
 		}
 		if ($error = curl_error($ch)) {
+			if ($this->_debug) {
+				echo '<fieldset style="width:75%"><legend><b>[ERROR]</b></legend>'. $resp .'</fieldset><br>';
+			}
 			throw new Exception($error);
 		}
 		curl_close($ch);
@@ -1060,6 +1071,7 @@ class Yod_Model
 
 	protected $_name;
 	protected $_table;
+	protected $_fields;
 	protected $_prefix;
 
 
@@ -1088,7 +1100,7 @@ class Yod_Model
 		}
 
 		if (empty($config) && $this->_dsn) {
-			$config = $this->config($this->_dsn);
+			$config = Yod::config($this->_dsn);
 		}
 		if ($this->_db = Yod_Database::getInstance($config)) {
 			$this->_prefix = $this->_db->config('prefix');
@@ -1127,13 +1139,13 @@ class Yod_Model
 			if (class_exists($classname, false)) {
 				self::$_model[$name] = new $classname($name, $config);
 			} else {
-				$modname = Yod_Base::get_modname();
-				$classpath = YOD_RUNPATH . '/' . $modname . '/Model/' . $classname . '.php';
+				$classpath = YOD_LIBPATH . '/Model/' . $classname . '.php';
 				if (is_file($classpath)) {
 					include $classpath;
 					self::$_model[$name] = new $classname($name, $config);
 				} else {
-					$classpath = YOD_RUNPATH . '/Model/' . $classname . '.php';
+					$modname = Yod_Base::get_modname();
+					$classpath = YOD_RUNPATH . '/' . $modname . '/Model/' . $classname . '.php';
 					if (is_file($classpath)) {
 						include $classpath;
 						self::$_model[$name] = new $classname($name, $config);
@@ -1168,10 +1180,13 @@ class Yod_Model
 	 * @param mixed		$select
 	 * @return mixed
 	 */
-	public function find($where = null, $params = array(), $select = '*')
+	public function find($where = null, array $params = array(), $select = null)
 	{
 		if (is_numeric($where)) {
 			$where = 'id = '. $where;
+		}
+		if (is_null($select)) {
+			$select = empty($this->fields) ? '*' : $this->fields;
 		}
 		if ($result = $this->_db->select($select, $this->_table, $where, $params, 'LIMIT 1')) {
 			$this->_data = $this->_db->fetch($result);
@@ -1189,10 +1204,13 @@ class Yod_Model
 	 * @param mixed		$select
 	 * @return mixed
 	 */
-	public function select($where = null, $params = array(), $select = '*')
+	public function select($where = null, array $params = array(), $select = null)
 	{
 		if (is_numeric($where)) {
 			$where = 'id = '. $where;
+		}
+		if (is_null($select)) {
+			$select = empty($this->fields) ? '*' : $this->fields;
 		}
 		if ($result = $this->_db->select($select, $this->_table, $where, $params)) {
 			$data = $this->_db->fetchAll($result);
@@ -1209,7 +1227,7 @@ class Yod_Model
 	 * @param array		$params
 	 * @return integer
 	 */
-	public function count($where = '', $params = array())
+	public function count($where = '', array $params = array())
 	{
 		$count = 0;
 		if ($result = $this->_db->select('COUNT(*)', $this->_table, $where, $params, "LIMIT 1")) {
@@ -1229,7 +1247,7 @@ class Yod_Model
 	 * @param array		$params
 	 * @return integer
 	 */
-	public function save($data)
+	public function save(array $data)
 	{
 		if ($this->_db->insert($data, $this->_table)) {
 			$id = $this->_db->insertId();
@@ -1246,7 +1264,7 @@ class Yod_Model
 	 * @param array		$params
 	 * @return integer
 	 */
-	public function update($data, $where = '', $params = array())
+	public function update(array $data, $where = '', array $params = array())
 	{
 		if (empty($data)) return false;
 		foreach ($data as $name => $value) {
@@ -1270,7 +1288,7 @@ class Yod_Model
 	 * @param array		$params
 	 * @return integer
 	 */
-	public function remove($where, $params = array())
+	public function remove($where, array $params = array())
 	{
 		return $this->_db->delete($this->_table, $where, $params);
 	}
@@ -1381,10 +1399,13 @@ class Yod_DbModel extends Yod_Model
 	 * @param mixed		$select
 	 * @return mixed
 	 */
-	public function find($where = null, $params = array(), $select = null)
+	public function find($where = null, array $params = array(), $select = null)
 	{
 		if (is_numeric($where)) {
 			$where = 'id = '. $where;
+		}
+		if (is_null($select) && $this->fields) {
+			$select = $this->fields;
 		}
 		$query = $this->field($select)->where($where, $params)->limit('1')->parseQuery();
 		if ($result = $this->_db->query($query, $this->_params)) {
@@ -1405,10 +1426,13 @@ class Yod_DbModel extends Yod_Model
 	 * @param mixed		$select
 	 * @return mixed
 	 */
-	public function select($where = null, $params = array(), $select = null)
+	public function select($where = null, array $params = array(), $select = null)
 	{
 		if (is_numeric($where)) {
 			$where = 'id = '. $where;
+		}
+		if (is_null($select) && $this->fields) {
+			$select = $this->fields;
 		}
 		$query = $this->field($select)->where($where, $params)->parseQuery();
 		if ($result = $this->_db->query($query, $this->_params)) {
@@ -1428,7 +1452,7 @@ class Yod_DbModel extends Yod_Model
 	 * @param array		$params
 	 * @return integer
 	 */
-	public function count($where = '', $params = array())
+	public function count($where = '', array $params = array())
 	{
 		$query = $this->field('COUNT(*)')->where($where, $params)->parseQuery();
 		if ($result = $this->_db->query($query, $this->_params)) {
@@ -1452,7 +1476,7 @@ class Yod_DbModel extends Yod_Model
 	 * @param array		$params
 	 * @return integer
 	 */
-	public function save($data)
+	public function save(array $data)
 	{
 		if (empty($this->_table)) {
 			trigger_error('You have an error in your SQL syntax: table name is empty', E_USER_WARNING);
@@ -1478,7 +1502,7 @@ class Yod_DbModel extends Yod_Model
 	 * @param array		$params
 	 * @return integer
 	 */
-	public function update($data, $where = '', $params = array())
+	public function update(array $data, $where = '', array $params = array())
 	{
 		if (empty($this->_table)) {
 			trigger_error('You have an error in your SQL syntax: table name is empty', E_USER_WARNING);
@@ -1509,7 +1533,7 @@ class Yod_DbModel extends Yod_Model
 	 * @param array		$params
 	 * @return integer
 	 */
-	public function remove($where, $params = array())
+	public function remove($where, array $params = array())
 	{
 		if (empty($this->_table)) {
 			trigger_error('You have an error in your SQL syntax: table name is empty', E_USER_WARNING);
@@ -1580,7 +1604,7 @@ class Yod_DbModel extends Yod_Model
 	 * @param string	$mode
 	 * @return Yod_DbModel
 	 */
-	public function where($where, $params = array(), $mode = 'AND')
+	public function where($where, array $params = array(), $mode = 'AND')
 	{
 		if ($where) {
 			if (is_string($params) && $params) {
@@ -1615,7 +1639,7 @@ class Yod_DbModel extends Yod_Model
 	 * @param array		$params
 	 * @return Yod_DbModel
 	 */
-	public function having($having, $params = array())
+	public function having($having, array $params = array())
 	{
 		$this->_query['HAVING'] = $having;
 		$this->params($params);
@@ -1654,7 +1678,7 @@ class Yod_DbModel extends Yod_Model
 	 * @param string	$mode
 	 * @return Yod_DbModel
 	 */
-	public function union($union, $params = array(), $mode = '')
+	public function union($union, array $params = array(), $mode = '')
 	{
 		if (is_array($union)) {
 			$union = $this->parseQuery($union);
@@ -1682,7 +1706,7 @@ class Yod_DbModel extends Yod_Model
 	 * @param array		$params
 	 * @return Yod_DbModel
 	 */
-	public function params($params)
+	public function params(array $params)
 	{
 		if (is_array($params)) {
 			if (is_array($this->_params)) {
@@ -1785,7 +1809,7 @@ abstract class Yod_Database
 	 * @param array $config
 	 * @return void
 	 */
-	public function __construct($config)
+	public function __construct(array $config)
 	{
 		$this->_config = $config;
 		$this->_prefix = empty($config['prefix']) ? '' : $config['prefix']; 
@@ -1841,7 +1865,7 @@ abstract class Yod_Database
 				$classname = 'Yod_Db'.ucwords($config['type']);
 			}
 			if (!class_exists($classname, false)) {
-				include YOD_RUNPATH . '/Driver/' . substr($classname, 4) . '.php';
+				include YOD_LIBPATH . '/Driver/' . substr($classname, 4) . '.php';
 			}
 			self::$_db[$md5key] = new $classname($config);
 		}
@@ -1856,7 +1880,7 @@ abstract class Yod_Database
 	 * @param mixed $value
 	 * @return array
 	 */
-	public function config($name = '', $value = null)
+	public function config($name = null, $value = null)
 	{
 		$argc = func_num_args();
 		switch ($argc) {
@@ -1912,7 +1936,7 @@ abstract class Yod_Database
 	 * @param boolean $replace
 	 * @return mixed
 	 */
-	public function insert($data, $table, $replace = false)
+	public function insert(array $data, $table, $replace = false)
 	{
 		if (empty($data) || empty($table)) return false;
 		$values = $fields = $params = array();
@@ -1936,7 +1960,7 @@ abstract class Yod_Database
 	 * @param array $params
 	 * @return integer
 	 */
-	public function update($data, $table, $where = null, $params = array())
+	public function update(array $data, $table, $where = null, array $params = array())
 	{
 		if (empty($data) || empty($table)) return false;
 		$params1 = $update = array();
@@ -1952,6 +1976,9 @@ abstract class Yod_Database
 		}
 		foreach ($params as $key => $value) {
 			$params1[] = $value;
+			if (is_numeric($key)) {
+				continue;
+			}
 			$where = str_replace($key, '?', $where);
 		}
 		$query = 'UPDATE ' . $this->_prefix . $table . ' SET ' .implode(', ', $update) . (empty($where) ? '' : ' WHERE ' . $where);
@@ -1966,11 +1993,14 @@ abstract class Yod_Database
 	 * @param array $params
 	 * @return integer
 	 */
-	public function delete($table, $where = null, $params = array())
+	public function delete($table, $where = null, array $params = array())
 	{
 		if (empty($table)) return false;
 		$params1 = array();
 		foreach ($params as $key => $value) {
+			if (is_numeric($key)) {
+				continue;
+			}
 			$where = str_replace($key, '?', $where);
 		}
 		$query = 'DELETE FROM ' . $this->_prefix . $table . (empty($where) ? '' : ' WHERE ' . $where);
@@ -1987,7 +2017,7 @@ abstract class Yod_Database
 	 * @param string $extend
 	 * @return mixed
 	 */
-	public function select($select, $table, $where = null, $params = array(), $extend = null)
+	public function select($select, $table, $where = null, array $params = array(), $extend = null)
 	{
 		if (empty($table))  return false;
 		if (is_array($select)) {
@@ -2000,11 +2030,44 @@ abstract class Yod_Database
 		}
 		$params1 = array();
 		foreach ($params as $key => $value) {
-			$where = str_replace($key, '?', $where);
 			$params1[] = $value;
+			if (is_numeric($key)) {
+				continue;
+			}
+			$where = str_replace($key, '?', $where);
 		}
 		$query = 'SELECT ' . (empty($select) ? '*' : $select) . ' FROM ' . $this->_prefix . $table . (empty($where) ? '' : ' WHERE ' . $where) . (empty($extend) ? '' : ' ') . $extend;
 		return $this->query($query, $params1);
+	}
+
+	/**
+	 * queryData
+	 * @access public
+	 * @param string $query
+	 * @param array $params
+	 * @return mixed
+	 */
+	public function queryData($query, array $params = array())
+	{
+		$result = $this->query($query, $params);
+		$data = $this->fetch($result);
+		$this->free($result);
+		return $data;
+	}
+
+	/**
+	 * queryRows
+	 * @access public
+	 * @param string $query
+	 * @param array $params
+	 * @return mixed
+	 */
+	public function queryRows($query, array $params = array())
+	{
+		$result = $this->query($query, $params);
+		$rows = $this->fetchAll($result);
+		$this->free($result);
+		return $rows;
 	}
 
 	/**
@@ -2025,7 +2088,7 @@ abstract class Yod_Database
 	 * @param integer $linknum
 	 * @return array
 	 */
-	protected function dbconfig($config, $linknum = 0)
+	protected function dbconfig(array $config, $linknum = 0)
 	{
 		if (empty($config)) {
 			$config = $this->_config;
@@ -2059,7 +2122,7 @@ abstract class Yod_Database
 	 * @param integer $linknum
 	 * @return mixed
 	 */
-	abstract public function connect($config = null, $linknum = 0);
+	abstract public function connect(array $config = null, $linknum = 0);
 
 	/**
 	* fields
@@ -2077,7 +2140,7 @@ abstract class Yod_Database
 	 * @param boolean $affected
 	 * @return mixed
 	 */
-	abstract public function execute($query, $params = array(), $affected = false);
+	abstract public function execute($query, array $params = array(), $affected = false);
 
 	/**
 	 * query
@@ -2086,7 +2149,7 @@ abstract class Yod_Database
 	 * @param array $params
 	 * @return mixed
 	 */
-	abstract public function query($query, $params = array());
+	abstract public function query($query, array $params = array());
 	
 	/**
 	 * count
@@ -2182,7 +2245,7 @@ class Yod_DbPdo extends Yod_Database
 	 * @param array $config
 	 * @return void
 	 */
-	public function __construct($config)
+	public function __construct(array $config)
 	{
 		parent::__construct($config);
 
@@ -2197,7 +2260,7 @@ class Yod_DbPdo extends Yod_Database
 	 * @param integer $linknum
 	 * @return mixed
 	 */
-	public function connect($config = null, $linknum = 0)
+	public function connect(array $config = null, $linknum = 0)
 	{
 		$config = $this->dbconfig($config, $linknum);
 		$linknum = isset($config['linknum']) ? $config['linknum'] : 0;
@@ -2264,7 +2327,7 @@ class Yod_DbPdo extends Yod_Database
 	 * @param boolean $affected
 	 * @return boolean
 	 */
-	public function execute($query, $params = array(), $affected = false)
+	public function execute($query, array $params = array(), $affected = false)
 	{
 		$this->connect($this->_config, 0);
 
@@ -2294,7 +2357,7 @@ class Yod_DbPdo extends Yod_Database
 	 * @param array $params
 	 * @return mixed
 	 */
-	public function query($query, $params = array())
+	public function query($query, array $params = array())
 	{
 		$this->connect($this->_config, 1);
 
@@ -2555,6 +2618,44 @@ abstract class Yod_Base
 	}
 
 	/**
+	 * session
+	 * @access public
+	 * @param string $name
+	 * @param mixed $value
+	 * @return mixed
+	 */
+	public static function session($name = null, $value = null)
+	{
+		isset($_SESSION) or session_start();
+
+		$num_args = func_num_args();
+		if ($num_args == 0) {
+			return $_SESSION;
+		}
+		if ($num_args > 1) {
+			if (is_null($value)) {
+				if (is_null($name)) {
+					return $_SESSION;
+				}
+				unset($_SESSION[$name]);
+			} else {
+				$_SESSION[$name] = $value;
+			}
+			return;
+		}
+		if (is_null($name)) {
+			$_SESSION = array();
+			return;
+		}
+		if (strpos($name, '.')) {
+			list($name1, $name2) = explode('.', $name, 2);
+			return isset($_SESSION[$name1][$name2]) ? $_SESSION[$name1][$name2] : null;
+		} else {
+			return isset($_SESSION[$name]) ? $_SESSION[$name] : null;
+		}
+	}
+
+	/**
 	 * import
 	 * @access public
 	 * @param string $alias
@@ -2572,9 +2673,9 @@ abstract class Yod_Base
 			}
 
 			if (strncasecmp($classfile, 'yod/', 4) == 0) {
-				$classpath = YOD_RUNPATH . '/Extend/Yod/' . substr($classfile, 4) . $classext;
+				$classpath = YOD_LIBPATH . '/Extend/Yod/' . substr($classfile, 4) . $classext;
 			} else {
-				$classpath = YOD_RUNPATH . '/Extend/' . $classfile . $classext;
+				$classpath = YOD_LIBPATH . '/Extend/' . $classfile . $classext;
 			}
 			if (is_file($classpath)) include $classpath;
 			self::$_imports[$alias] = $classpath;
@@ -2601,11 +2702,11 @@ abstract class Yod_Base
 					if (strncasecmp($classname, 'Yod_', 4)) {
 						$classname = 'Yod_' . $classname;
 					}
-					$classpath = YOD_RUNPATH . '/Plugin/Yod/' . substr($classfile, 4) . $classext;
+					$classpath = YOD_LIBPATH . '/Plugin/Yod/' . substr($classfile, 4) . $classext;
 				} elseif (strncasecmp($classname, 'Yod_', 4) == 0) {
-					$classpath = YOD_RUNPATH . '/Plugin/' . substr($classfile, 0, -strlen($classname)) . substr($classname, 4) . $classext;
+					$classpath = YOD_LIBPATH . '/Plugin/Yod/' . substr($classfile, 0, -strlen($classname)) . substr($classname, 4) . $classext;
 				} else {
-					$classpath = YOD_RUNPATH . '/Plugin/' . $classfile . $classext;
+					$classpath = YOD_LIBPATH . '/Plugin/' . $classfile . $classext;
 				}
 				if (is_file($classpath)) include $classpath;
 			}
@@ -2676,25 +2777,25 @@ abstract class Yod_Base
 			} else {
 				$directory = '/Extend/Yod/';
 			}
-			$classpath = YOD_RUNPATH . $directory . substr($classfile, 4) . '.php';
+			$classpath = YOD_LIBPATH . $directory . substr($classfile, 4) . '.php';
 		} else {
 			$modname = Yod_Base::get_modname();
 			if (strncasecmp(substr($classname, -10), 'Controller', 10) == 0) {
 				$classpath = YOD_RUNPATH . '/' . $modname . '/Controller/' . $classfile . '.php';
 				if (is_file($classpath)) include $classpath;
 			} elseif (strncasecmp(substr($classname, -5), 'Model', 5) == 0) {
-				$classpath = YOD_RUNPATH . '/' . $modname . '/Model/' . $classfile . '.php';
+				$classpath = YOD_LIBPATH . '/Model/' . $classfile . '.php';
 				if (is_file($classpath)) {
 					include $classpath;
 				} else {
-					$classpath = YOD_RUNPATH . '/Model/' . $classfile . '.php';
+					$classpath = YOD_RUNPATH . '/' . $modname . '/Model/' . $classfile . '.php';
 					if (is_file($classpath)) include $classpath;
 				}
 			} elseif (strncasecmp(substr($classname, -7), 'Service', 7) == 0) {
-				$classpath = YOD_RUNPATH . '/Service/' . $classfile . '.php';
+				$classpath = YOD_LIBPATH . '/Service/' . $classfile . '.php';
 				if (is_file($classpath)) include $classpath;
 			} else {
-				$classpath = YOD_RUNPATH . '/Extend/' . $classfile . '.php';
+				$classpath = YOD_LIBPATH . '/Extend/' . $classfile . '.php';
 				if (is_file($classpath)) include $classpath;
 			}
 		}
@@ -2750,8 +2851,8 @@ abstract class Yod_Base
 		$logusec = (microtime(true) - time()) * 1000000;
 		$errfile = empty($errfile) ? 'Unknown' : $errfile;
 		$logdata = sprintf("[%s %06d] %s: %s in %s(%d)\n", $logtime, $logusec, $errtype, $errstr, $errfile, $errline);
-		$logfile = YOD_LOGPATH . '/errors.log';
-		is_dir(YOD_LOGPATH) or mkdir(YOD_LOGPATH);
+		$logfile = YOD_DATADIR . '/error.log';
+		is_dir(YOD_DATADIR) or mkdir(YOD_DATADIR);
 		file_put_contents($logfile, $logdata, FILE_APPEND);
 
 		return false;
@@ -2824,7 +2925,7 @@ abstract class Yod_Base
 	public static function init_register()
 	{
 		// errorlog
-		if ((YOD_RUNMODE & 2) && defined('YOD_LOGPATH')) {
+		if ((YOD_RUNMODE & 2) && defined('YOD_DATADIR')) {
 			set_error_handler(array('Yod_Base', 'errorlog'));
 		}
 
@@ -2852,6 +2953,19 @@ abstract class Yod_Base
 	}
 
 	/**
+	 * init_startup
+	 * @access public
+	 * @param void
+	 * @return void
+	 */
+	public static function init_startup()
+	{
+		self::init_config();
+		self::init_register();
+		self::init_autorun();
+	}
+
+	/**
 	 * set_modname
 	 * @access public
 	 * @param string 	$modname
@@ -2865,10 +2979,10 @@ abstract class Yod_Base
 	/**
 	 * get_modname
 	 * @access public
-	 * @param string 	$modname
+	 * @param void
 	 * @return void
 	 */
-	public static function get_modname($modname)
+	public static function get_modname()
 	{
 		return self::$_modname;
 	}

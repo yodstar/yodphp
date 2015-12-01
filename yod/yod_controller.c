@@ -142,7 +142,8 @@ static int yod_extract(zval *array TSRMLS_DC) {
 
 #if PHP_API_VERSION > 20041225
 	if (!EG(active_symbol_table)) {
-		zend_rebuild_symbol_table(TSRMLS_C);
+		/*zend_rebuild_symbol_table(TSRMLS_C);*/
+		return 1;
 	}
 #endif
 	
@@ -231,7 +232,8 @@ static void yod_controller_run(yod_controller_t *object TSRMLS_DC) {
 				if (zend_hash_exists(&(*pce)->function_table, ZEND_STRS(ZEND_CONSTRUCTOR_FUNC_NAME))) {
 					zend_call_method_with_1_params(&target, *pce, &(*pce)->constructor, ZEND_CONSTRUCTOR_FUNC_NAME, NULL, request);
 				}
-				zval_ptr_dtor(&target);
+				zval_dtor(target);
+				FREE_ZVAL(target);
 			} else {
 				php_error_docref(NULL TSRMLS_CC, E_ERROR, "Class '%s' not found", classname);
 			}
@@ -253,19 +255,26 @@ static void yod_controller_run(yod_controller_t *object TSRMLS_DC) {
 }
 /* }}} */
 
-/** {{{ void yod_controller_construct(yod_controller_t *object, yod_request_t *request, char *action, uint action_len TSRMLS_DC)
+/** {{{ void yod_controller_construct(yod_controller_t *object, yod_request_t *request, char *action, uint action_len, int in_action TSRMLS_DC)
 */
-void yod_controller_construct(yod_controller_t *object, yod_request_t *request, char *action, uint action_len TSRMLS_DC) {
+void yod_controller_construct(yod_controller_t *object, yod_request_t *request, char *action, uint action_len, int in_action TSRMLS_DC) {
 	zval *p_name, *p_action, *tpl_view, *tpl_data;
-	char *name, *tpl_path;
+	char *cname, *name, *tpl_path;
 
 	if (!object) {
 		php_error_docref(NULL TSRMLS_CC, E_ERROR, "Cannot instantiate abstract class Yod_Controller");
 		return;
 	}
 
+	if (in_action == 0) {
+		cname = strstr(Z_OBJCE_P(object)->name, "Action");
+		if (cname && strcasecmp(cname, "Action") == 0) {
+			in_action = 1;
+		}
+	}
+
 #if PHP_YOD_DEBUG
-	if (instanceof_function(Z_OBJCE_P(object), yod_action_ce TSRMLS_CC)) {
+	if (in_action == 1) {
 		yod_debugf("yod_action_construct()");
 	} else {
 		yod_debugf("yod_controller_construct()");
@@ -311,7 +320,7 @@ void yod_controller_construct(yod_controller_t *object, yod_request_t *request, 
 	zval_ptr_dtor(&tpl_view);
 
 #if PHP_YOD_DEBUG
-	if (instanceof_function(Z_OBJCE_P(object), yod_action_ce TSRMLS_CC)) {
+	if (in_action == 1) {
 		yod_debugf("yod_action_init()");
 	} else {
 		yod_debugf("yod_controller_init()");
@@ -323,12 +332,12 @@ void yod_controller_construct(yod_controller_t *object, yod_request_t *request, 
 	}
 
 #if PHP_YOD_DEBUG
-	if (instanceof_function(Z_OBJCE_P(object), yod_action_ce TSRMLS_CC)) {
+	if (in_action == 1) {
 		yod_debugf("yod_action_run()");
 	}
 #endif
 
-	if (instanceof_function(Z_OBJCE_P(object), yod_action_ce TSRMLS_CC)) {
+	if (in_action == 1) {
 		zend_call_method_with_0_params(&object, Z_OBJCE_P(object), NULL, "run", NULL);
 	} else {
 		yod_controller_run(object TSRMLS_CC);
@@ -417,6 +426,8 @@ static int yod_controller_render(yod_controller_t *object, zval *response, char 
 
 	zend_bool short_open_tag = 0;
 
+	HashTable *symbol_table = NULL;
+
 #if PHP_YOD_DEBUG
 	if (instanceof_function(Z_OBJCE_P(object), yod_widget_ce TSRMLS_CC)) {
 		yod_debugf("yod_widget_render(%s)", view ? view : "");
@@ -497,6 +508,17 @@ static int yod_controller_render(yod_controller_t *object, zval *response, char 
 			return 0;
 		}
 
+		scope = EG(scope);
+		EG(scope) = Z_OBJCE_P(object);
+
+		if (EG(active_symbol_table)) {
+			symbol_table = EG(active_symbol_table);
+		}
+
+		/* rebuild_symbol_table */
+		ALLOC_HASHTABLE(EG(active_symbol_table));
+		zend_hash_init(EG(active_symbol_table), 0, NULL, ZVAL_PTR_DTOR, 0);
+
 		/* tpl_data */
 		if (zend_hash_find(Z_ARRVAL_P(tpl_view), "tpl_data", sizeof("tpl_data"), (void**) &tpl_data) == SUCCESS) {
 			if (tpl_data && Z_TYPE_PP(tpl_data) == IS_ARRAY) {
@@ -508,9 +530,6 @@ static int yod_controller_render(yod_controller_t *object, zval *response, char 
 			yod_extract(data TSRMLS_CC);
 		}
 
-		scope = EG(scope);
-		EG(scope) = Z_OBJCE_P(object);
-
 #if PHP_API_VERSION < 20100412
 		short_open_tag = CG(short_tags);
 		CG(short_tags) = 1;
@@ -521,6 +540,12 @@ static int yod_controller_render(yod_controller_t *object, zval *response, char 
 #if PHP_API_VERSION < 20100412
 		CG(short_tags) = short_open_tag;
 #endif
+
+		if (symbol_table) {
+			zend_hash_destroy(EG(active_symbol_table));
+			FREE_HASHTABLE(EG(active_symbol_table));
+			EG(active_symbol_table) = symbol_table;
+		}
 
 		EG(scope) = scope;
 
@@ -612,7 +637,7 @@ static void yod_controller_widget(yod_controller_t *object, char *route, uint ro
 	request = zend_read_property(Z_OBJCE_P(object), object, ZEND_STRL("_request"), 1 TSRMLS_CC);
 
 	/* route */
-	route1 = php_str_to_str(route, route_len, "\\", 1, "/", 1, &route_len);
+	route1 = route2 = php_str_to_str(route, route_len, "\\", 1, "/", 1, &route_len);
 	while (strstr(route1, "//")) {
 		route2 = php_str_to_str(route1, route_len, "//", 2, "/", 1, &route_len);
 		efree(route1);
@@ -685,9 +710,10 @@ static void yod_controller_widget(yod_controller_t *object, char *route, uint ro
 		if (zend_hash_exists(&(*pce)->function_table, ZEND_STRS(ZEND_CONSTRUCTOR_FUNC_NAME))) {
 			yod_call_method_with_3_params(&target, *pce, &(*pce)->constructor, ZEND_CONSTRUCTOR_FUNC_NAME, NULL, request, action1, params1);
 		}
-		zval_ptr_dtor(&target);
+		zval_dtor(target);
+		FREE_ZVAL(target);
 	} else {
-		spprintf(&classpath, 0, "%s/%s/%sWidget.php", yod_runpath(TSRMLS_C), YOD_DIR_WIDGET, widget);
+		spprintf(&classpath, 0, "%s/%s/%s/%sWidget.php", yod_runpath(TSRMLS_C), YOD_G(modname), YOD_DIR_WIDGET, widget);
 		if (VCWD_ACCESS(classpath, F_OK) == 0) {
 			yod_include(classpath, NULL, 1 TSRMLS_CC);
 #if PHP_API_VERSION < 20100412
@@ -700,7 +726,8 @@ static void yod_controller_widget(yod_controller_t *object, char *route, uint ro
 				if (zend_hash_exists(&(*pce)->function_table, ZEND_STRS(ZEND_CONSTRUCTOR_FUNC_NAME))) {
 					yod_call_method_with_3_params(&target, *pce, &(*pce)->constructor, ZEND_CONSTRUCTOR_FUNC_NAME, NULL, request, action1, params1);
 				}
-				zval_ptr_dtor(&target);
+				zval_dtor(target);
+				FREE_ZVAL(target);
 			} else {
 				php_error_docref(NULL TSRMLS_CC, E_ERROR, "Class '%s' not found", classname);
 			}
@@ -712,7 +739,7 @@ static void yod_controller_widget(yod_controller_t *object, char *route, uint ro
 	zval_ptr_dtor(&action1);
 	zval_ptr_dtor(&params1);
 	efree(classname);
-	efree(route1);
+	efree(route2);
 	efree(action);
 	efree(widget);
 }
@@ -770,7 +797,7 @@ PHP_METHOD(yod_controller, __construct) {
 		return;
 	}
 
-	(void)yod_controller_construct(getThis(), request, action, action_len TSRMLS_CC);
+	(void)yod_controller_construct(getThis(), request, action, action_len, 0 TSRMLS_CC);
 }
 /* }}} */
 

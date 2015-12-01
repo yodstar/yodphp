@@ -109,5 +109,6 @@ Yod_Model Object
 
     [_name:protected] => 
     [_table:protected] => 
+    [_fields:protected] => 
     [_prefix:protected] => yod_
 )

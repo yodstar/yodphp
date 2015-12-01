@@ -173,21 +173,21 @@ int yod_debugw(char *data, uint data_len TSRMLS_DC) {
 	php_stream_context *context;
 	php_stream *stream;
 	
-	char *logpath, *logfile;
+	char *datadir, *logfile;
 
-	logpath = yod_logpath(TSRMLS_C);
+	datadir = yod_datadir(TSRMLS_C);
 
-	if (logpath == NULL || data_len == 0) {
+	if (datadir == NULL || data_len == 0) {
 		return 0;
 	}
 
-	if (php_stream_stat_path(logpath, &ssb) == FAILURE) {
-		if (!php_stream_mkdir(logpath, 0750, REPORT_ERRORS, NULL)) {
+	if (php_stream_stat_path(datadir, &ssb) == FAILURE) {
+		if (!php_stream_mkdir(datadir, 0750, REPORT_ERRORS, NULL)) {
 			return 0;
 		}
 	}
 
-	spprintf(&logfile, 0, "%s/debugs.log", logpath);
+	spprintf(&logfile, 0, "%s/debug.log", datadir);
 	context = php_stream_context_from_zval(zcontext, 0);
 
 #if PHP_API_VERSION < 20100412

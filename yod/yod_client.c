@@ -551,7 +551,7 @@ void yod_client_call(yod_client_t *object, char *method, uint method_len, zval *
 
 	handle = zend_read_property(Z_OBJCE_P(object), object, ZEND_STRL("_handle"), 1 TSRMLS_CC);
 
-	// request
+	/* request */
 	MAKE_STD_ZVAL(request);
 	array_init(request);
 	add_assoc_string(request, "client", "Yod_Client", 1);
@@ -571,7 +571,7 @@ void yod_client_call(yod_client_t *object, char *method, uint method_len, zval *
 	php_json_encode(&buf, request TSRMLS_CC);
 #endif
 
-	// encrypt
+	/* encrypt */
 	MAKE_STD_ZVAL(encrypt);
 	ZVAL_STRINGL(encrypt, buf.c, buf.len, 1);
 	zend_call_method_with_1_params(&object, Z_OBJCE_P(object), NULL, "encrypt", &request1, encrypt);
@@ -587,7 +587,7 @@ void yod_client_call(yod_client_t *object, char *method, uint method_len, zval *
 		return;
 	}
 
-	// timeout
+	/* timeout */
 	timeout = zend_read_property(Z_OBJCE_P(object), object, ZEND_STRL("_timeout"), 1 TSRMLS_CC);
 	if (timeout && Z_TYPE_P(timeout) == IS_LONG) {
 		timeout1 = Z_LVAL_P(timeout);
@@ -618,32 +618,39 @@ void yod_client_call(yod_client_t *object, char *method, uint method_len, zval *
 		}
 		return;
 	}
+		
+	/* debug */
+	debug = zend_read_property(Z_OBJCE_P(object), object, ZEND_STRL("_debug"), 1 TSRMLS_CC);
 
-	// decrypt
+	/* decrypt */
 	zend_call_method_with_1_params(&object, Z_OBJCE_P(object), NULL, "decrypt", &decrypt, response1);
-	zval_ptr_dtor(&response1);
-
 	if (!decrypt || Z_TYPE_P(decrypt) != IS_STRING) {
+		if (debug && Z_TYPE_P(debug) == IS_BOOL && Z_BVAL_P(debug)) {
+			php_printf("<fieldset style=\"width:75%%\"><legend><b>[ERROR]</b></legend>%s</fieldset><br>\r\n", Z_STRVAL_P(response1));
+		}
 		zend_throw_exception_ex(NULL, 0 TSRMLS_CC, "Data decrypt failed");
 		if (decrypt) {
 			zval_ptr_dtor(&decrypt);
 		}
+		zval_ptr_dtor(&response1);
 		return;
 	}
 
-	// debug
-	debug = zend_read_property(Z_OBJCE_P(object), object, ZEND_STRL("_debug"), 1 TSRMLS_CC);
 	if (debug && Z_TYPE_P(debug) == IS_BOOL && Z_BVAL_P(debug)) {
 		php_printf("<fieldset style=\"width:75%%\"><legend><b>[DEBUG]</b></legend>%s</fieldset><br>\r\n", Z_STRVAL_P(decrypt));
 	}
 
 	if (strncmp(Z_STRVAL_P(decrypt), "{\"server\":\"Yod_Server\",", 23) != 0) {
+		if (debug && Z_TYPE_P(debug) == IS_BOOL && Z_BVAL_P(debug)) {
+			php_printf("<fieldset style=\"width:75%%\"><legend><b>[ERROR]</b></legend>%s</fieldset><br>\r\n", Z_STRVAL_P(response1));
+		}
 		zend_throw_exception_ex(NULL, 0 TSRMLS_CC, "Incorrect data format");
+		zval_ptr_dtor(&response1);
 		zval_ptr_dtor(&decrypt);
 		return;
 	}
 
-	// json_decode
+	/* json_decode */
 	MAKE_STD_ZVAL(response);
 #if PHP_API_VERSION > 20041225
 #ifndef PHP_JSON_OBJECT_AS_ARRAY
@@ -657,33 +664,40 @@ void yod_client_call(yod_client_t *object, char *method, uint method_len, zval *
 	zval_ptr_dtor(&decrypt);
 	
 	if (response && Z_TYPE_P(response) == IS_ARRAY) {
-		// status
+		/* status */
 		if (zend_hash_find(Z_ARRVAL_P(response), ZEND_STRS("status"), (void **)&ppval) == SUCCESS) {
 			if (ppval && Z_TYPE_PP(ppval) == IS_LONG) {
 				status = Z_LVAL_PP(ppval);
 			}
 		}
-		// data
+		/* data */
 		if (zend_hash_find(Z_ARRVAL_P(response), ZEND_STRS("data"), (void **)&ppval) != SUCCESS) {
 			zend_throw_exception_ex(NULL, 0 TSRMLS_CC, "Unknown error");
+			zval_ptr_dtor(&response1);
 			zval_ptr_dtor(&response);
 			return;
 		}
 		if (!status) {
 			convert_to_string_ex(ppval);
 			zend_throw_exception_ex(NULL, 0 TSRMLS_CC, "%s", Z_STRVAL_PP(ppval));
+			zval_ptr_dtor(&response1);
 			zval_ptr_dtor(&response);
 			return;
 		}
 		ZVAL_ZVAL(result, *ppval, 1, 0);
 
-		// extra
+		/* extra */
 		if (zend_hash_find(Z_ARRVAL_P(response), ZEND_STRS("extra"), (void **)&ppval) == SUCCESS) {
 			if (ppval && Z_TYPE_PP(ppval) == IS_ARRAY) {
 				zend_update_property(Z_OBJCE_P(object), object, ZEND_STRL("_extra"), *ppval TSRMLS_CC);
 			}
 		}
+	} else {
+		if (debug && Z_TYPE_P(debug) == IS_BOOL && Z_BVAL_P(debug)) {
+			php_printf("%s\r\n", Z_STRVAL_P(response1));
+		}
 	}
+	zval_ptr_dtor(&response1);
 	zval_ptr_dtor(&response);
 
 }

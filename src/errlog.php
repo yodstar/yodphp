@@ -85,9 +85,12 @@ abstract class Errlog
 			if (FCache::S($md5key)) {
 				return;
 			}
-			FCache::S($md5key, $error, 1800);
 			if (isset(self::$errtype[$error['type']])) {
 				$error['type'] = self::$errtype[$error['type']];
+				if (isset($error['message']) && stripos($error['message'], 'SQLSTATE')) {
+					$error['sql'] = Yod::db()->lastQuery();
+				}
+				$error['trace'] = debug_backtrace();
 			}
 			// http_filter
 			foreach (Errlog::$http_filter as $key => $rules) {
@@ -100,6 +103,7 @@ abstract class Errlog
 				 	}
 				}
 			}
+			FCache::S($md5key, $error, 1800);
 			Errlog::sendlog($error);
 		}
 	}

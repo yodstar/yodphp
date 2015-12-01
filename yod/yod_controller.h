@@ -19,7 +19,7 @@
 #ifndef PHP_YOD_CONTROLLER_H
 #define PHP_YOD_CONTROLLER_H
 
-void yod_controller_construct(yod_controller_t *object, yod_request_t *request, char *action, uint action_len TSRMLS_DC);
+void yod_controller_construct(yod_controller_t *object, yod_request_t *request, char *action, uint action_len, int in_action TSRMLS_DC);
 
 extern zend_class_entry *yod_controller_ce;
 

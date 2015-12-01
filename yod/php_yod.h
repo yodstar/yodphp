@@ -51,10 +51,10 @@ extern zend_module_entry yod_module_entry;
 #endif
 
 #if PHP_YOD_DEBUG
-#define YOD_VERSION					"1.4.0-dev"
+#define YOD_VERSION					"1.4.1-dev"
 #define YOD_RUNMODE					7
 #else
-#define YOD_VERSION					"1.4.0"
+#define YOD_VERSION					"1.4.1"
 #define YOD_RUNMODE					3
 #endif
 
@@ -131,7 +131,8 @@ char *yod_viewext(TSRMLS_D);
 char *yod_pathvar(TSRMLS_D);
 char *yod_runfile(TSRMLS_D);
 char *yod_runpath(TSRMLS_D);
-char *yod_logpath(TSRMLS_D);
+char *yod_libpath(TSRMLS_D);
+char *yod_datadir(TSRMLS_D);
 void yod_init_startup(TSRMLS_D);
 
 int yod_do_exit(long status TSRMLS_DC);
@@ -159,8 +160,8 @@ ZEND_BEGIN_MODULE_GLOBALS(yod)
 	char		*viewext;
 	char		*pathvar;
 	char		*runpath;
-	char		*extpath;
-	char		*logpath;
+	char		*libpath;
+	char		*datadir;
 
 	zval		*yodapp;
 	zval		*config;

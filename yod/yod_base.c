@@ -27,6 +27,7 @@
 #include "ext/standard/flock_compat.h"
 #include "ext/standard/php_filestat.h"
 #include "ext/standard/php_string.h"
+#include "ext/session/php_session.h"
 
 #ifdef HAVE_SYS_FILE_H
 # include <sys/file.h>
@@ -63,6 +64,11 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(yod_base_config_arginfo, 0, 0, 0)
 	ZEND_ARG_INFO(0, name)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(yod_base_session_arginfo, 0, 0, 0)
+	ZEND_ARG_INFO(0, name)
+	ZEND_ARG_INFO(0, value)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(yod_base_import_arginfo, 0, 0, 1)
@@ -162,6 +168,130 @@ int yod_base_config(char *name, uint name_len, zval *result TSRMLS_DC) {
 }
 /* }}} */
 
+/** {{{ int yod_base_session(zval *name, zval *value, zval *result, int num_args TSRMLS_DC)
+*/
+int yod_base_session(zval *name, zval *value, zval *result, int num_args TSRMLS_DC) {
+	char *name1, *name2;
+	uint name1_len, name2_len;
+	zval **value1, **value2;
+
+	/* session_start */
+	if (PS(session_status) != php_session_active) {
+		php_session_start(TSRMLS_C);
+	}
+
+	/* When the number of arguments is 0 */
+	if (num_args == 0) {
+		/* return $_SESSION */
+		if (PS(http_session_vars) && PS(http_session_vars)->type == IS_ARRAY) {
+			ZVAL_ZVAL(result, PS(http_session_vars), 1, 0);
+		}
+		return 1;
+	}
+
+	/* When the number of arguments is greater than 1 */
+	if (num_args > 1) {
+		if (!value || Z_TYPE_P(value) == IS_NULL) {
+			if (!name || Z_TYPE_P(name) == IS_NULL) {
+				/* When name and value are null, return $_SESSION */
+				if (PS(http_session_vars) && PS(http_session_vars)->type == IS_ARRAY) {
+					ZVAL_ZVAL(result, PS(http_session_vars), 1, 0);
+				}
+			} else {
+				/* When name isn't null and value is null, unset $_SESSION[name] */
+				if (PS(http_session_vars) && PS(http_session_vars)->type == IS_ARRAY) {
+					SEPARATE_ZVAL_IF_NOT_REF(&PS(http_session_vars));
+					PS_DEL_VARL(Z_STRVAL_P(name), Z_STRLEN_P(name));
+				}
+			}
+		} else {
+			if (Z_TYPE_P(name) != IS_STRING) {
+				convert_to_string(name);
+			}
+
+			/* When name and value aren't null, $_SESSION[name] = value */
+			php_set_session_var(Z_STRVAL_P(name), Z_STRLEN_P(name), value, NULL TSRMLS_CC);
+			PS_ADD_VARL(Z_STRVAL_P(name), Z_STRLEN_P(name));
+		}
+		return 1;
+	}
+
+	/* When the number of arguments is 1 */
+
+	if (!name || Z_TYPE_P(name) == IS_NULL) {
+		/* When name is null, session_unset */
+		if (PS(http_session_vars) && PS(http_session_vars)->type == IS_ARRAY) {
+			HashTable *ht_sess_var;
+
+			SEPARATE_ZVAL_IF_NOT_REF(&PS(http_session_vars));
+			ht_sess_var = Z_ARRVAL_P(PS(http_session_vars));
+
+#if PHP_API_VERSION < 20100412
+			if (PG(register_globals)) {
+				char *str_key;
+				uint key_len;
+				ulong num_key;
+				HashPosition pos;
+
+				zend_hash_internal_pointer_reset_ex(ht_sess_var, &pos);
+
+				while (zend_hash_get_current_key_ex(ht_sess_var, &str_key, &key_len, &num_key, 0, &pos) == HASH_KEY_IS_STRING) {
+					zend_delete_global_variable(str_key, key_len - 1 TSRMLS_CC);
+					zend_hash_move_forward_ex(ht_sess_var, &pos);
+				}
+			}
+#endif
+			/* Clean $_SESSION. */
+			zend_hash_clean(ht_sess_var);
+		}
+		return 1;
+	}
+
+	if (Z_TYPE_P(name) != IS_STRING) {
+		convert_to_string(name);
+	}
+	
+	if (Z_STRLEN_P(name) > 0) {
+		/* When name isn't null, return $_SESSION[name] */
+		name1_len = 0;
+		name2_len = Z_STRLEN_P(name);
+		name1 = name2 = Z_STRVAL_P(name);
+		while (name2_len > 0) {
+			if (*name2 == '.') {
+				name2++;
+				name2_len--;
+				break;
+			}
+			name2++;
+			name2_len--;
+			name1_len++;
+		}
+
+		if (name1_len > 0 && name2_len > 0) { /* $_SESSION[name1][name2] */
+			name1 = estrndup(name1, name1_len);
+			if (php_get_session_var(name1, name1_len, &value1 TSRMLS_CC) == SUCCESS
+				&& Z_TYPE_PP(value1) == IS_ARRAY
+				&& (zend_hash_find(Z_ARRVAL_PP(value1), name2, name2_len + 1, (void **)&value2) == SUCCESS)
+			) {
+				ZVAL_ZVAL(result, *value2, 1, 0);
+			}
+			efree(name1);
+		} else if (name1_len > 0) { /* $_SESSION[name1] */
+			if (php_get_session_var(name1, name1_len, &value1 TSRMLS_CC) == SUCCESS) {
+				ZVAL_ZVAL(result, *value1, 1, 0);
+			}
+		} else if (name2_len > 0) { /* $_SESSION[name2] */
+			if (php_get_session_var(name2, name2_len, &value1 TSRMLS_CC) == SUCCESS) {
+				ZVAL_ZVAL(result, *value1, 1, 0);
+			}
+		}
+		return 1;
+	}
+
+	return 0;
+}
+/* }}} */
+
 /** {{{ int yod_base_import(char *alias, uint alias_len, char *classext, uint classext_len TSRMLS_DC)
 */
 int yod_base_import(char *alias, uint alias_len, char *classext, uint classext_len TSRMLS_DC) {
@@ -222,15 +352,15 @@ int yod_base_import(char *alias, uint alias_len, char *classext, uint classext_l
 
 		if (classfile_len > 4 && strncasecmp(classfile, "yod/", 4) == 0) {
 			if (classext_len) {
-				spprintf(&classpath, 0, "%s/%s/Yod/%s%s", yod_runpath(TSRMLS_C), YOD_DIR_EXTEND, classfile + 4, classext);
+				spprintf(&classpath, 0, "%s/%s/Yod/%s%s", yod_libpath(TSRMLS_C), YOD_DIR_EXTEND, classfile + 4, classext);
 			} else {
-				spprintf(&classpath, 0, "%s/%s/Yod/%s.php", yod_runpath(TSRMLS_C), YOD_DIR_EXTEND, classfile + 4);
+				spprintf(&classpath, 0, "%s/%s/Yod/%s.php", yod_libpath(TSRMLS_C), YOD_DIR_EXTEND, classfile + 4);
 			}
 		} else {
 			if (classext_len) {
-				spprintf(&classpath, 0, "%s/%s/%s%s", yod_runpath(TSRMLS_C), YOD_DIR_EXTEND, classfile, classext);
+				spprintf(&classpath, 0, "%s/%s/%s%s", yod_libpath(TSRMLS_C), YOD_DIR_EXTEND, classfile, classext);
 			} else {
-				spprintf(&classpath, 0, "%s/%s/%s.php", yod_runpath(TSRMLS_C), YOD_DIR_EXTEND, classfile);
+				spprintf(&classpath, 0, "%s/%s/%s.php", yod_libpath(TSRMLS_C), YOD_DIR_EXTEND, classfile);
 			}
 		}
 
@@ -249,15 +379,15 @@ int yod_base_import(char *alias, uint alias_len, char *classext, uint classext_l
 
 			if (classfile_len > 4 && strncasecmp(classfile, "yod/", 4) == 0) {
 				if (classext_len) {
-					spprintf(&classpath, 0, "%s/%s/Yod/%s%s", yod_runpath(TSRMLS_C), YOD_DIR_EXTEND, classfile + 4, classext);
+					spprintf(&classpath, 0, "%s/%s/Yod/%s%s", yod_libpath(TSRMLS_C), YOD_DIR_EXTEND, classfile + 4, classext);
 				} else {
-					spprintf(&classpath, 0, "%s/%s/Yod/%s.php", yod_runpath(TSRMLS_C), YOD_DIR_EXTEND, classfile + 4);
+					spprintf(&classpath, 0, "%s/%s/Yod/%s.php", yod_libpath(TSRMLS_C), YOD_DIR_EXTEND, classfile + 4);
 				}
 			} else {
 				if (classext_len) {
-					spprintf(&classpath, 0, "%s/%s/%s%s", yod_runpath(TSRMLS_C), YOD_DIR_EXTEND, classfile, classext);
+					spprintf(&classpath, 0, "%s/%s/%s%s", yod_libpath(TSRMLS_C), YOD_DIR_EXTEND, classfile, classext);
 				} else {
-					spprintf(&classpath, 0, "%s/%s/%s.php", yod_runpath(TSRMLS_C), YOD_DIR_EXTEND, classfile);
+					spprintf(&classpath, 0, "%s/%s/%s.php", yod_libpath(TSRMLS_C), YOD_DIR_EXTEND, classfile);
 				}
 			}
 
@@ -348,23 +478,23 @@ int yod_base_plugin(char *alias, uint alias_len, char *classext, uint classext_l
 				classname = classname1;
 			}
 			if (classext_len) {
-				spprintf(&classpath, 0, "%s/%s/Yod/%s%s", yod_runpath(TSRMLS_C), YOD_DIR_PLUGIN, classfile + 4, classext);
+				spprintf(&classpath, 0, "%s/%s/Yod/%s%s", yod_libpath(TSRMLS_C), YOD_DIR_PLUGIN, classfile + 4, classext);
 			} else {
-				spprintf(&classpath, 0, "%s/%s/Yod/%s.php", yod_runpath(TSRMLS_C), YOD_DIR_PLUGIN, classfile + 4);
+				spprintf(&classpath, 0, "%s/%s/Yod/%s.php", yod_libpath(TSRMLS_C), YOD_DIR_PLUGIN, classfile + 4);
 			}
 		} else if (strncasecmp(classname, "Yod_", 4) == 0) {
 			classfile2 = estrndup(classfile, classfile_len - classname_len);
 			if (classext_len) {
-				spprintf(&classpath, 0, "%s/%s/Yod/%s%s%s", yod_runpath(TSRMLS_C), YOD_DIR_PLUGIN, classfile2, classname + 4, classext);
+				spprintf(&classpath, 0, "%s/%s/Yod/%s%s%s", yod_libpath(TSRMLS_C), YOD_DIR_PLUGIN, classfile2, classname + 4, classext);
 			} else {
-				spprintf(&classpath, 0, "%s/%s/Yod/%s%s.php", yod_runpath(TSRMLS_C), YOD_DIR_PLUGIN, classfile2, classname + 4);
+				spprintf(&classpath, 0, "%s/%s/Yod/%s%s.php", yod_libpath(TSRMLS_C), YOD_DIR_PLUGIN, classfile2, classname + 4);
 			}
 			efree(classfile2);
 		} else {
 			if (classext_len) {
-				spprintf(&classpath, 0, "%s/%s/%s%s", yod_runpath(TSRMLS_C), YOD_DIR_PLUGIN, classfile, classext);
+				spprintf(&classpath, 0, "%s/%s/%s%s", yod_libpath(TSRMLS_C), YOD_DIR_PLUGIN, classfile, classext);
 			} else {
-				spprintf(&classpath, 0, "%s/%s/%s.php", yod_runpath(TSRMLS_C), YOD_DIR_PLUGIN, classfile);
+				spprintf(&classpath, 0, "%s/%s/%s.php", yod_libpath(TSRMLS_C), YOD_DIR_PLUGIN, classfile);
 			}
 		}
 
@@ -445,26 +575,26 @@ static int yod_base_autoload(char *classname, uint classname_len TSRMLS_DC) {
 
 	if (strncasecmp(classfile, "Yod_", 4) == 0) { /* yodphp extends class */
 		if (strncasecmp(classfile, "Yod_Db", 6) == 0) {
-			spprintf(&classpath, 0, "%s/%s/%s.php", yod_runpath(TSRMLS_C), YOD_DIR_DRIVER, classfile + 4);
+			spprintf(&classpath, 0, "%s/%s/%s.php", yod_libpath(TSRMLS_C), YOD_DIR_DRIVER, classfile + 4);
 		} else {
-			spprintf(&classpath, 0, "%s/%s/Yod/%s.php", yod_runpath(TSRMLS_C), YOD_DIR_EXTEND, classfile + 4);
+			spprintf(&classpath, 0, "%s/%s/Yod/%s.php", yod_libpath(TSRMLS_C), YOD_DIR_EXTEND, classfile + 4);
 		}
 	} else {
 		if (classname_len > 10 && strncasecmp(classfile + classname_len - 10, "Controller", 10) == 0) {
 			spprintf(&classpath, 0, "%s/%s/%s/%s.php", yod_runpath(TSRMLS_C), YOD_G(modname), YOD_DIR_CONTROLLER, classfile);
 		} else if (classname_len > 5 && strncasecmp(classfile + classname_len - 5, "Model", 5) == 0) {
-			spprintf(&classpath, 0, "%s/%s/%s/%s.php", yod_runpath(TSRMLS_C), YOD_G(modname), YOD_DIR_MODEL, classfile);
+			spprintf(&classpath, 0, "%s/%s/%s.php", yod_libpath(TSRMLS_C), YOD_DIR_MODEL, classfile);
 			if (VCWD_ACCESS(classpath, F_OK) != 0) {
-				spprintf(&classpath1, 0, "%s/%s/%s.php", yod_runpath(TSRMLS_C), YOD_DIR_MODEL, classfile);
+				spprintf(&classpath1, 0, "%s/%s/%s/%s.php", yod_runpath(TSRMLS_C), YOD_G(modname), YOD_DIR_MODEL, classfile);
 				if (classpath) {
 					efree(classpath);
 				}
 				classpath = classpath1;
 			}
 		} else if (classname_len > 7 && strncasecmp(classfile + classname_len - 7, "Service", 7) == 0) {
-			spprintf(&classpath, 0, "%s/%s/%s.php", yod_runpath(TSRMLS_C), YOD_DIR_SERVICE, classfile);
+			spprintf(&classpath, 0, "%s/%s/%s.php", yod_libpath(TSRMLS_C), YOD_DIR_SERVICE, classfile);
 		} else {
-			spprintf(&classpath, 0, "%s/%s/%s.php", yod_runpath(TSRMLS_C), YOD_DIR_EXTEND, classfile);
+			spprintf(&classpath, 0, "%s/%s/%s.php", yod_libpath(TSRMLS_C), YOD_DIR_EXTEND, classfile);
 		}
 	}
 
@@ -483,26 +613,26 @@ static int yod_base_autoload(char *classname, uint classname_len TSRMLS_DC) {
 
 		if (strncasecmp(classfile, "Yod_", 4) == 0) { /* yodphp extends class */
 			if (strncasecmp(classfile, "Yod_Db", 6) == 0) {
-				spprintf(&classpath, 0, "%s/%s/%s.php", yod_runpath(TSRMLS_C), YOD_DIR_DRIVER, classfile + 4);
+				spprintf(&classpath, 0, "%s/%s/%s.php", yod_libpath(TSRMLS_C), YOD_DIR_DRIVER, classfile + 4);
 			} else {
-				spprintf(&classpath, 0, "%s/%s/Yod/%s.php", yod_runpath(TSRMLS_C), YOD_DIR_EXTEND, classfile + 4);
+				spprintf(&classpath, 0, "%s/%s/Yod/%s.php", yod_libpath(TSRMLS_C), YOD_DIR_EXTEND, classfile + 4);
 			}
 		} else {
 			if (classname_len > 10 && strncasecmp(classfile + classname_len - 10, "Controller", 10) == 0) {
 				spprintf(&classpath, 0, "%s/%s/%s/%s.php", yod_runpath(TSRMLS_C), YOD_G(modname), YOD_DIR_CONTROLLER, classfile);
 			} else if (classname_len > 5 && strncasecmp(classfile + classname_len - 5, "Model", 5) == 0) {
-				spprintf(&classpath, 0, "%s/%s/%s/%s.php", yod_runpath(TSRMLS_C), YOD_G(modname), YOD_DIR_MODEL, classfile);
+				spprintf(&classpath, 0, "%s/%s/%s.php", yod_libpath(TSRMLS_C), YOD_DIR_MODEL, classfile);
 				if (VCWD_ACCESS(classpath, F_OK) != 0) {
-					spprintf(&classpath1, 0, "%s/%s/%s.php", yod_runpath(TSRMLS_C), YOD_DIR_MODEL, classfile);
+					spprintf(&classpath1, 0, "%s/%s/%s/%s.php", yod_runpath(TSRMLS_C), YOD_G(modname), YOD_DIR_MODEL, classfile);
 					if (classpath) {
 						efree(classpath);
 					}
 					classpath = classpath1;
 				}
 			} else if (classname_len > 7 && strncasecmp(classfile + classname_len - 7, "Service", 7) == 0) {
-				spprintf(&classpath, 0, "%s/%s/%s.php", yod_runpath(TSRMLS_C), YOD_DIR_SERVICE, classfile);
+				spprintf(&classpath, 0, "%s/%s/%s.php", yod_libpath(TSRMLS_C), YOD_DIR_SERVICE, classfile);
 			} else {
-				spprintf(&classpath, 0, "%s/%s/%s.php", yod_runpath(TSRMLS_C), YOD_DIR_EXTEND, classfile);
+				spprintf(&classpath, 0, "%s/%s/%s.php", yod_libpath(TSRMLS_C), YOD_DIR_EXTEND, classfile);
 			}
 		}
 
@@ -538,7 +668,7 @@ static int yod_base_errorlog(long errnum, char *errstr, uint errstr_len, char *e
 	php_stream_context *context;
 	php_stream *stream;
 
-	char *logdata, *logpath, *logfile, *errtype;
+	char *logdata, *datadir, *logfile, *errtype;
 	uint logdata_len;
 
 	switch (errnum) {
@@ -576,14 +706,14 @@ static int yod_base_errorlog(long errnum, char *errstr, uint errstr_len, char *e
 	 		break;
 	}
 
-	logpath = yod_logpath(TSRMLS_C);
-	if (php_stream_stat_path(logpath, &ssb) == FAILURE) {
-		if (!php_stream_mkdir(logpath, 0750, REPORT_ERRORS, NULL)) {
+	datadir = yod_datadir(TSRMLS_C);
+	if (php_stream_stat_path(datadir, &ssb) == FAILURE) {
+		if (!php_stream_mkdir(datadir, 0750, REPORT_ERRORS, NULL)) {
 			return 0;
 		}
 	}
 
-	spprintf(&logfile, 0, "%s/errors.log", logpath);
+	spprintf(&logfile, 0, "%s/error.log", datadir);
 	context = php_stream_context_from_zval(zcontext, 0);
 
 #if PHP_API_VERSION < 20100412
@@ -642,6 +772,22 @@ PHP_METHOD(yod_base, config) {
 	}
 
 	yod_base_config(name, name_len, return_value TSRMLS_CC);
+}
+/* }}} */
+
+/** {{{ proto public Yod_Base::session($name = null, $value = null)
+*/
+PHP_METHOD(yod_base, session) {
+	zval *name = NULL, *value = NULL;
+	int num_args = 0;
+
+	num_args = ZEND_NUM_ARGS();
+
+	if (zend_parse_parameters(num_args TSRMLS_CC, "|zz!", &name, &value) == FAILURE) {
+		return;
+	}
+
+	yod_base_session(name, value, return_value, num_args TSRMLS_CC);
 }
 /* }}} */
 
@@ -759,6 +905,7 @@ PHP_METHOD(yod_base, errorlog) {
 zend_function_entry yod_base_methods[] = {
 	PHP_ME(yod_base, app,		yod_base_app_arginfo,		ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
 	PHP_ME(yod_base, config,	yod_base_config_arginfo,	ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
+	PHP_ME(yod_base, session,	yod_base_session_arginfo,	ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
 	PHP_ME(yod_base, import,	yod_base_import_arginfo,	ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
 	PHP_ME(yod_base, plugin,	yod_base_plugin_arginfo,	ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
 	PHP_ME(yod_base, model,		yod_base_model_arginfo,		ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)

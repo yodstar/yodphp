@@ -190,7 +190,7 @@ static int yod_dbpdo_connect(yod_dbpdo_t *object, zval *config, long linknum, zv
 	if (linkids && Z_TYPE_P(linkids) == IS_ARRAY) {
 		if (zend_hash_index_find(Z_ARRVAL_P(linkids), linknum, (void **)&ppval) == SUCCESS) {
 			MAKE_STD_ZVAL(linkid);
-			ZVAL_ZVAL(linkid, *ppval, 1, 0)
+			ZVAL_ZVAL(linkid, *ppval, 1, 0);
 			zend_update_property(Z_OBJCE_P(object), object, ZEND_STRL("_linkid"), linkid TSRMLS_CC);
 			zval_ptr_dtor(&linkid);
 			zval_ptr_dtor(&dbconfig);
@@ -363,10 +363,11 @@ static int yod_dbpdo_connect(yod_dbpdo_t *object, zval *config, long linknum, zv
 }
 /* }}} */
 
-/** {{{ int yod_dbpdo_execute(yod_dbpdo_t *object, zval *query, zval *params, int affected, zval *retval TSRMLS_DC)
+/** {{{ ulong yod_dbpdo_execute(yod_dbpdo_t *object, zval *query, zval *params, int affected, zval *retval TSRMLS_DC)
 */
-int yod_dbpdo_execute(yod_dbpdo_t *object, zval *query, zval *params, int affected, zval *retval TSRMLS_DC) {
-	zval *config, *linkid, *result, *pzval;
+ulong yod_dbpdo_execute(yod_dbpdo_t *object, zval *query, zval *params, int affected, zval *retval TSRMLS_DC) {
+	zval *config, *linkid, *result, *pexec, *pzval = NULL;
+	ulong rowcount = 0;
 
 #if PHP_YOD_DEBUG
 	yod_debugf("yod_dbpdo_execute()");
@@ -387,41 +388,74 @@ int yod_dbpdo_execute(yod_dbpdo_t *object, zval *query, zval *params, int affect
 	linkid = zend_read_property(Z_OBJCE_P(object), object, ZEND_STRL("_linkid"), 1 TSRMLS_CC);
 	if (linkid && Z_TYPE_P(linkid) == IS_OBJECT) {
 		if (!params || Z_TYPE_P(params) != IS_ARRAY) {
-			zend_call_method_with_1_params(&linkid, Z_OBJCE_P(linkid), NULL, "exec", &pzval, query);
-			if (pzval) {
+			zend_call_method_with_1_params(&linkid, Z_OBJCE_P(linkid), NULL, "exec", &pexec, query);
+			if (pexec && Z_TYPE_P(pexec) == IS_LONG) {
+				/* rowcount */
+				rowcount = Z_LVAL_P(pexec);
+
+				/* affected */
 				if (params && Z_TYPE_P(params) == IS_BOOL) {
 					affected = Z_BVAL_P(params);
 				}
+
+				/* retval */
 				if (retval) {
 					if (affected) {
-						ZVAL_ZVAL(retval, pzval, 1, 0);
+						ZVAL_LONG(retval, rowcount);
 					} else {
-						ZVAL_BOOL(retval, 1);
+						if (rowcount > 0) {
+							ZVAL_BOOL(retval, 1);
+						} else {
+							ZVAL_BOOL(retval, 0);
+						}
 					}
 				}
-				zval_ptr_dtor(&pzval);
-				return 1;
 			}
+			if (pexec) {
+				zval_ptr_dtor(&pexec);
+			}
+
+			/* return */
+			return rowcount;
 		} else {
 			zend_call_method_with_1_params(&linkid, Z_OBJCE_P(linkid), NULL, "prepare", &result, query);
 			if (result && Z_TYPE_P(result) == IS_OBJECT) {
-				zend_call_method_with_1_params(&result, Z_OBJCE_P(result), NULL, "execute", &pzval, params);
-				if (pzval) {
+				zend_call_method_with_1_params(&result, Z_OBJCE_P(result), NULL, "execute", &pexec, params);
+				if (pexec && Z_TYPE_P(pexec) == IS_BOOL && Z_BVAL_P(pexec) == 1) {
+					/* affected */
 					if (affected) {
-						zval_ptr_dtor(&pzval);
 						zend_call_method_with_0_params(&result, Z_OBJCE_P(result), NULL, "rowcount", &pzval);
+						if (pzval && Z_TYPE_P(pzval) == IS_LONG) {
+							rowcount = Z_LVAL_P(pzval);
+						}
+						if (pzval) {
+							zval_ptr_dtor(&pzval);
+						}
+					} else {
+						rowcount = 1;
 					}
 					zend_update_property(Z_OBJCE_P(object), object, ZEND_STRL("_result"), result TSRMLS_CC);
 				}
 				zval_ptr_dtor(&result);
-
-				if (pzval) {
-					if (retval) {
-						ZVAL_ZVAL(retval, pzval, 1, 0);
-					}
-					zval_ptr_dtor(&pzval);
-					return 1;
+				if (pexec) {
+					zval_ptr_dtor(&pexec);
 				}
+
+				/* retval */
+				if (retval) {
+					if (affected) {
+						ZVAL_LONG(retval, rowcount);
+					} else {
+						if (rowcount > 0) {
+							ZVAL_BOOL(retval, 1);
+						} else {
+							ZVAL_BOOL(retval, 0);
+						}
+					}
+				}
+
+				/* return */
+				return rowcount;
 			} else {
 				php_error_docref(NULL TSRMLS_CC, E_WARNING, "Call to a member function execute() on a non-object");
 			}
@@ -430,7 +464,9 @@ int yod_dbpdo_execute(yod_dbpdo_t *object, zval *query, zval *params, int affect
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Call to a member function execute() on a non-object");
 	}
 
-	ZVAL_BOOL(retval, 0);
+	if (retval) {
+		ZVAL_BOOL(retval, 0);
+	}
 	return 0;
 }
 /* }}} */

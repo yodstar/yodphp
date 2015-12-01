@@ -1,4 +1,26 @@
-This file documents changes for Yod Framework release 1.4.0 and earlier.
+This file documents changes for Yod Framework release 1.4.1 and earlier.
+
+version 1.4.1:
+
+  - Fixed a bug in the initialization configuration
+  - Modify the method widget of class Yod_Controller
+  - Add a constant YOD_LIBPATH (default value is YOD_RUNPATH)
+  - Add a constant YOD_DATADIR to replace constant YOD_LOGPATH
+  - Modify the method model and autoload of class Yod_Base
+  - Modify the method getInstance of class Yod_Model
+  - Modify the method __construct and handle of class Yod_Server
+  - Fixed a bug in yod_request_route (multi params analysis is abnormal)
+  - Fixed a bug in yod_controller_render (scope of variable)
+  - Add a protected property _fields in the class Yod_Model
+  - Modify the method find and select of class Yod_Model
+  - Modify the method find and select of class Yod_DbModel
+  - Fixed a bug in yod_controller_widget
+  - Fixed a bug in yod_controller_construct
+  - Fixed a bug in yod_request_dispatch
+  - Add a method session in the class Yod_Base
+  - Add public method queryData and queryRows in the class Yod_Database
+  - Modify the method __call of class Yod_Client
+  - Fixed a bug in yod_database_* and yod_dbpdo_execute
 
 version 1.4.0:
 
@@ -13,6 +35,11 @@ version 1.4.0:
 version 1.3.7:
 
   - Add a public method table in the class Yod_Model
+  - Fixed a bug in yod_request_route (multi params analysis is abnormal)
+  - Fixed a bug in yod_controller_render (scope of variable)
+  - Fixed a bug in yod_controller_widget
+  - Fixed a bug in yod_controller_construct
+  - Fixed a bug in yod_request_dispatch
 
 version 1.3.6:
 

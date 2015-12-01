@@ -447,24 +447,59 @@ char *yod_runpath(TSRMLS_D) {
 }
 /* }}} */
 
-/** {{{ char *yod_logpath(TSRMLS_D)
+/** {{{ char *yod_libpath(TSRMLS_D)
 */
-char *yod_logpath(TSRMLS_D) {
-	zval logpath;
+char *yod_libpath(TSRMLS_D) {
+	zval libpath, runpath;
+	uint libpath_len;
+	char *runfile;
 
-	if (!YOD_G(logpath)) {
-		if (zend_get_constant(ZEND_STRL("YOD_LOGPATH"), &logpath TSRMLS_CC)) {
-			convert_to_string(&logpath);
-			YOD_G(logpath) = estrndup(Z_STRVAL(logpath), Z_STRLEN(logpath));
-			zval_dtor(&logpath);
+	if (!YOD_G(libpath)) {
+		if (zend_get_constant(ZEND_STRL("YOD_LIBPATH"), &libpath TSRMLS_CC)) {
+			convert_to_string(&libpath);
+			YOD_G(libpath) = estrndup(Z_STRVAL(libpath), Z_STRLEN(libpath));
+			zval_dtor(&libpath);
+		} else if (zend_get_constant(ZEND_STRL("YOD_RUNPATH"), &runpath TSRMLS_CC)) {
+			convert_to_string(&runpath);
+			YOD_G(libpath) = estrndup(Z_STRVAL(runpath), Z_STRLEN(runpath));
+			zval_dtor(&runpath);
+		} else {
+			INIT_ZVAL(libpath);
+			runfile = yod_runfile(TSRMLS_C);
+			libpath_len = strlen(runfile);
+			YOD_G(libpath) = estrndup(runfile, libpath_len);
+			libpath_len = php_dirname(YOD_G(libpath), libpath_len);
+			ZVAL_STRINGL(&libpath, YOD_G(libpath), libpath_len, 1);
+			zend_register_stringl_constant(ZEND_STRS("YOD_LIBPATH"), Z_STRVAL(libpath), libpath_len, CONST_CS, 0 TSRMLS_CC);
 		}
 	
 #if PHP_YOD_DEBUG
-		yod_debugf("yod_logpath():%s", YOD_G(logpath) ? YOD_G(logpath) : "");
+		yod_debugf("yod_libpath():%s", YOD_G(libpath));
 #endif
 	}
 
-	return YOD_G(logpath);
+	return YOD_G(libpath);
+}
+/* }}} */
+
+/** {{{ char *yod_datadir(TSRMLS_D)
+*/
+char *yod_datadir(TSRMLS_D) {
+	zval datadir;
+
+	if (!YOD_G(datadir)) {
+		if (zend_get_constant(ZEND_STRL("YOD_DATADIR"), &datadir TSRMLS_CC)) {
+			convert_to_string(&datadir);
+			YOD_G(datadir) = estrndup(Z_STRVAL(datadir), Z_STRLEN(datadir));
+			zval_dtor(&datadir);
+		}
+	
+#if PHP_YOD_DEBUG
+		yod_debugf("yod_datadir():%s", YOD_G(datadir) ? YOD_G(datadir) : "");
+#endif
+	}
+
+	return YOD_G(datadir);
 }
 /* }}} */
 
@@ -495,6 +530,10 @@ void yod_init_config(TSRMLS_D) {
 
 	if (VCWD_ACCESS(filepath, F_OK) == 0) {
 		yod_include(filepath, &config, 0 TSRMLS_CC);
+		if (!config || Z_TYPE_P(config) != IS_ARRAY) {
+			MAKE_STD_ZVAL(config);
+			array_init(config);
+		}
 	} else {
 		MAKE_STD_ZVAL(config);
 		array_init(config);
@@ -632,7 +671,7 @@ void yod_init_register(TSRMLS_D) {
 #endif
 
 	/* errorlog */
-	if ((yod_runmode(TSRMLS_C) & 2) && YOD_G(logpath)) {
+	if ((yod_runmode(TSRMLS_C) & 2) && YOD_G(datadir)) {
 		yod_register("set_error_handler", "errorlog" TSRMLS_CC);
 	}
 
@@ -662,7 +701,8 @@ void yod_init_startup(TSRMLS_D) {
 	yod_viewext(TSRMLS_C);
 	yod_pathvar(TSRMLS_C);
 	yod_runpath(TSRMLS_C);
-	yod_logpath(TSRMLS_C);
+	yod_libpath(TSRMLS_C);
+	yod_datadir(TSRMLS_C);
 
 	yod_init_register(TSRMLS_C);
 	yod_init_config(TSRMLS_C);
@@ -842,8 +882,8 @@ PHP_GINIT_FUNCTION(yod)
 	yod_globals->viewext	= NULL;
 	yod_globals->pathvar	= NULL;
 	yod_globals->runpath	= NULL;
-	yod_globals->extpath	= NULL;
-	yod_globals->logpath	= NULL;
+	yod_globals->libpath	= NULL;
+	yod_globals->datadir	= NULL;
 
 	yod_globals->yodapp		= NULL;
 	yod_globals->config		= NULL;
@@ -946,8 +986,8 @@ PHP_RINIT_FUNCTION(yod)
 	YOD_G(viewext)			= NULL;
 	YOD_G(pathvar)			= NULL;
 	YOD_G(runpath)			= NULL;
-	YOD_G(extpath)			= NULL;
-	YOD_G(logpath)			= NULL;
+	YOD_G(libpath)			= NULL;
+	YOD_G(datadir)			= NULL;
 
 	YOD_G(yodapp)			= NULL;
 	YOD_G(config)			= NULL;
@@ -1013,14 +1053,14 @@ PHP_RSHUTDOWN_FUNCTION(yod)
 		YOD_G(runpath) = NULL;
 	}
 
-	if (YOD_G(extpath)) {
-		efree(YOD_G(extpath));
-		YOD_G(extpath) = NULL;
+	if (YOD_G(libpath)) {
+		efree(YOD_G(libpath));
+		YOD_G(libpath) = NULL;
 	}
 
-	if (YOD_G(logpath)) {
-		efree(YOD_G(logpath));
-		YOD_G(logpath) = NULL;
+	if (YOD_G(datadir)) {
+		efree(YOD_G(datadir));
+		YOD_G(datadir) = NULL;
 	}
 
 	if (YOD_G(yodapp)) {
@@ -1087,6 +1127,7 @@ ZEND_GET_MODULE(yod)
 #if ZEND_MODULE_API_NO >= 20050922
 zend_module_dep yod_deps[] = {
 	ZEND_MOD_REQUIRED("spl")
+	ZEND_MOD_REQUIRED("session")
 	ZEND_MOD_REQUIRED("json")
 	{NULL, NULL, NULL}
 };

@@ -19,8 +19,11 @@
 #ifndef PHP_YOD_DBPDO_H
 #define PHP_YOD_DBPDO_H
 
-int yod_dbpdo_execute(yod_dbpdo_t *object, zval *query, zval *params, int affected, zval *retval TSRMLS_DC);
+ulong yod_dbpdo_execute(yod_dbpdo_t *object, zval *query, zval *params, int affected, zval *retval TSRMLS_DC);
 int yod_dbpdo_query(yod_dbpdo_t *object, zval *query, zval *params, zval *retval TSRMLS_DC);
+int yod_dbpdo_fetch(yod_dbpdo_t *object, zval *result, zval *retval TSRMLS_DC);
+int yod_dbpdo_fetchall(yod_dbpdo_t *object, zval *result, zval *retval TSRMLS_DC);
+int yod_dbpdo_free(yod_dbpdo_t *object, zval *result TSRMLS_DC);
 
 extern zend_class_entry *yod_dbpdo_ce;
 
