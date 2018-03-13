@@ -10,8 +10,8 @@
 // +----------------------------------------------------------------------
 
 // yodphp constant
-defined('YOD_RUNTIME') or define('YOD_RUNTIME', microtime(true));
-defined('YOD_VERSION') or define('YOD_VERSION', '1.4.1');
+defined('YOD_RUNTIME') or define('YOD_RUNTIME', microtime(true) * 1000);
+defined('YOD_VERSION') or define('YOD_VERSION', '1.4.2');
 defined('YOD_FORWARD') or define('YOD_FORWARD', 5);
 defined('YOD_RUNMODE') or define('YOD_RUNMODE', 3);
 defined('YOD_CHARSET') or define('YOD_CHARSET', 'utf-8');
@@ -258,7 +258,7 @@ final class Yod_Request
 		}
 		Yod_Base::set_modname($this->module);
 
-		$this->controller = empty($route[0]) ? 'Index' : ucfirst(strtolower($route[0]));
+		$this->controller = empty($route[0]) ? 'Index' : implode('', array_map('ucfirst', explode('-', strtolower(str_replace('--', '_', $route[0])))));
 		$this->action = empty($route[1]) ? 'index' : strtolower($route[1]);
 		$count = count($route);
 		for ($i=2; $i<$count; $i+=2) {
@@ -801,9 +801,17 @@ class Yod_Server
 		if (!empty($request['handle'])) {
 			$handle = trim(str_replace('//', '/', str_replace('.', '/', $request['handle'])), '/');
 			$handle = implode('/', array_map('ucfirst', explode('/', strtolower($handle))));
-			$classname = $handle . 'Service';
+			if (strncasecmp(substr($handle, -5), 'Model', 5) == 0) {
+				$classname = basename(substr($handle, 0, -5)) . 'Model';
+			} else {
+				$classname = basename($handle) . 'Service';
+			}
 			if (!class_exists($classname, false)) {
-				$classfile = YOD_LIBPATH . '/Service/' . $handle . 'Service.php';
+				if (strncasecmp(substr($handle, -5), 'Model', 5) == 0) {
+					$classfile = YOD_LIBPATH . '/Model/' . substr($handle, 0, -5) . 'Model.php';
+				} else {
+					$classfile = YOD_LIBPATH . '/Service/' . $handle . 'Service.php';
+				}
 				if (is_file($classfile)) {
 					require $classfile;
 				}
@@ -1186,7 +1194,7 @@ class Yod_Model
 			$where = 'id = '. $where;
 		}
 		if (is_null($select)) {
-			$select = empty($this->fields) ? '*' : $this->fields;
+			$select = empty($this->_fields) ? '*' : $this->_fields;
 		}
 		if ($result = $this->_db->select($select, $this->_table, $where, $params, 'LIMIT 1')) {
 			$this->_data = $this->_db->fetch($result);
@@ -1210,7 +1218,7 @@ class Yod_Model
 			$where = 'id = '. $where;
 		}
 		if (is_null($select)) {
-			$select = empty($this->fields) ? '*' : $this->fields;
+			$select = empty($this->_fields) ? '*' : $this->_fields;
 		}
 		if ($result = $this->_db->select($select, $this->_table, $where, $params)) {
 			$data = $this->_db->fetchAll($result);
@@ -1333,454 +1341,6 @@ class Yod_Model
 	public function __unset($name)
 	{
 		unset($this->_data[$name]);
-	}
-
-}
-
-/**
- * Yod_DbModel
- * 
- */
-class Yod_DbModel extends Yod_Model
-{
-	protected static $_model = array();
-
-	protected $_query = array();
-	protected $_params = array();
-
-	/**
-	 * __construct
-	 * @access public
-	 * @param string $name
-	 * @param mixed $config
-	 * @return void
-	 */
-	public function __construct($name = '', $config = null)
-	{
-		parent::__construct($name, $config);
-
-		$this->initQuery();
-	}
-
-	/**
-	 * getInstance
-	 * @access public
-	 * @param string	$name
-	 * @param mixed		$config
-	 * @return Yod_DbModel
-	 */
-	public static function getInstance($name = '', $config = null)
-	{
-		$name = ucfirst($name);
-		if (empty(self::$_model[$name])) {
-			self::$_model[$name] = new self($name, $config);
-		}
-		return self::$_model[$name];
-	}
-
-	/**
-	 * table
-	 * @access public
-	 * @return Yod_DbModel
-	 */
-	public function table($table)
-	{
-		if ($table) {
-			$this->_table = $table;
-		}
-		return $this;
-	}
-
-	/**
-	 * find
-	 * @access public
-	 * @param mixed		$where
-	 * @param array		$params
-	 * @param mixed		$select
-	 * @return mixed
-	 */
-	public function find($where = null, array $params = array(), $select = null)
-	{
-		if (is_numeric($where)) {
-			$where = 'id = '. $where;
-		}
-		if (is_null($select) && $this->fields) {
-			$select = $this->fields;
-		}
-		$query = $this->field($select)->where($where, $params)->limit('1')->parseQuery();
-		if ($result = $this->_db->query($query, $this->_params)) {
-			$this->_data = $this->_db->fetch($result);
-			$this->_db->free($result);
-			$this->initQuery();
-			return $this->_data;
-		}
-		$this->initQuery();
-		return false;
-	}
-
-	/**
-	 * select
-	 * @access public
-	 * @param mixed		$where
-	 * @param array		$params
-	 * @param mixed		$select
-	 * @return mixed
-	 */
-	public function select($where = null, array $params = array(), $select = null)
-	{
-		if (is_numeric($where)) {
-			$where = 'id = '. $where;
-		}
-		if (is_null($select) && $this->fields) {
-			$select = $this->fields;
-		}
-		$query = $this->field($select)->where($where, $params)->parseQuery();
-		if ($result = $this->_db->query($query, $this->_params)) {
-			$data = $this->_db->fetchAll($result);
-			$this->_db->free($result);
-			$this->initQuery();
-			return $data;
-		}
-		$this->initQuery();
-		return false;
-	}
-
-	/**
-	 * count
-	 * @access public
-	 * @param string	$where
-	 * @param array		$params
-	 * @return integer
-	 */
-	public function count($where = '', array $params = array())
-	{
-		$query = $this->field('COUNT(*)')->where($where, $params)->parseQuery();
-		if ($result = $this->_db->query($query, $this->_params)) {
-			$count = 0;
-			if ($data = $this->_db->fetch($result)) {
-				$count = current($data);
-			}
-			$this->_db->free($result);
-			$this->initQuery();
-			return $count;
-		}
-		$this->initQuery();
-		return 0;
-	}
-
-	/**
-	 * save
-	 * @access public
-	 * @param array		$data
-	 * @param string	$where
-	 * @param array		$params
-	 * @return integer
-	 */
-	public function save(array $data)
-	{
-		if (empty($this->_table)) {
-			trigger_error('You have an error in your SQL syntax: table name is empty', E_USER_WARNING);
-			return false;
-		}
-		if ($this->_db->insert($data, $this->_table)) {
-			$result = $this->_db->insertId();
-			if ($result == '0') {
-				$result = true;
-			}
-		} else {
-			$result = false;
-		}
-		$this->initQuery();
-		return $result;
-	}
-
-	/**
-	 * update
-	 * @access public
-	 * @param array		$data
-	 * @param string	$where
-	 * @param array		$params
-	 * @return integer
-	 */
-	public function update(array $data, $where = '', array $params = array())
-	{
-		if (empty($this->_table)) {
-			trigger_error('You have an error in your SQL syntax: table name is empty', E_USER_WARNING);
-			return false;
-		}
-		if (empty($data)) return false;
-		foreach ($data as $name => $value) {
-			if (is_string($name) && $name[0] == ':') {
-				if (empty($where)) {
-					$where = substr($name, 1) . ' = ' . $name;
-				} else {
-					$where .= ' AND ' . substr($name, 1) . ' = ' . $name;
-				}
-				$params[$name] = $value;
-				unset($data[$name]);
-			}
-		}
-		$this->where($where, $params);
-		$result = $this->_db->update($data, $this->_table, $this->_query['WHERE'], $this->_params);
-		$this->initQuery();
-		return $result;
-	}
-
-	/**
-	 * remove
-	 * @access public
-	 * @param string	$where
-	 * @param array		$params
-	 * @return integer
-	 */
-	public function remove($where, array $params = array())
-	{
-		if (empty($this->_table)) {
-			trigger_error('You have an error in your SQL syntax: table name is empty', E_USER_WARNING);
-			return false;
-		}
-		$this->where($where, $params);
-		$result = $this->_db->delete($this->_table, $this->_query['WHERE'], $this->_params);
-		$this->initQuery();
-		return $result;
-	}
-
-	/**
-	 * field
-	 * @access public
-	 * @param mixed		$select
-	 * @return Yod_DbModel
-	 */
-	public function field($select)
-	{
-		if (is_array($select)) {
-			foreach ($select as $key => $value) {
-				if (is_string($key)) {
-					$select[$key] = "{$value} AS {$key}"; 
-				}
-			}
-			$select = implode(', ', $select);
-		}
-		if ($select) {
-			$this->_query['SELECT'] = $select;
-		}
-		return $this;
-	}
-
-	/**
-	 * from
-	 * @access public
-	 * @param string	$table
-	 * @return Yod_DbModel
-	 */
-	public function from($table)
-	{
-		if ($table) {
-			$this->_query['FROM'] = "{$this->_prefix}{$table} AS t1";
-		}
-		return $this;
-	}
-
-	/**
-	 * join
-	 * @access public
-	 * @param string	$table
-	 * @param string	$where
-	 * @param string	$mode
-	 * @return Yod_DbModel
-	 */
-	public function join($table, $where = '', $mode = 'LEFT')
-	{
-		$join = count($this->_query['JOIN']) + 2;
-		$this->_query['JOIN'][] = "{$mode} JOIN {$this->_prefix}{$table} AS t{$join}". (empty($where) ? '' : " ON {$where}");
-		return $this;
-	}
-
-	/**
-	 * where
-	 * @access public
-	 * @param string	$where
-	 * @param array		$params
-	 * @param string	$mode
-	 * @return Yod_DbModel
-	 */
-	public function where($where, array $params = array(), $mode = 'AND')
-	{
-		if ($where) {
-			if (is_string($params) && $params) {
-				$mode = $params;
-			} else {
-				$this->params($params);
-			}
-			if ($this->_query['WHERE']) {
-				$where = "({$this->_query['WHERE']}) {$mode} ({$where})";
-			}
-			$this->_query['WHERE'] = $where;
-		}
-		return $this;
-	}
-
-	/**
-	 * group
-	 * @access public
-	 * @param string	$group
-	 * @return Yod_DbModel
-	 */
-	public function group($group)
-	{
-		$this->_query['GROUP BY'] = $group;
-		return $this;
-	}
-
-	/**
-	 * having
-	 * @access public
-	 * @param string	$having
-	 * @param array		$params
-	 * @return Yod_DbModel
-	 */
-	public function having($having, array $params = array())
-	{
-		$this->_query['HAVING'] = $having;
-		$this->params($params);
-		return $this;
-	}
-
-	/**
-	 * order
-	 * @access public
-	 * @param string	$order
-	 * @return Yod_DbModel
-	 */
-	public function order($order)
-	{
-		$this->_query['ORDER BY'] = $order;
-		return $this;
-	}
-
-	/**
-	 * limit
-	 * @access public
-	 * @param mixed		$limit
-	 * @return Yod_DbModel
-	 */
-	public function limit($limit)
-	{
-		$this->_query['LIMIT'] = $limit;
-		return $this;
-	}
-
-	/**
-	 * union
-	 * @access public
-	 * @param mixed		$union
-	 * @param array		$params
-	 * @param string	$mode
-	 * @return Yod_DbModel
-	 */
-	public function union($union, array $params = array(), $mode = '')
-	{
-		if (is_array($union)) {
-			$union = $this->parseQuery($union);
-		}
-		$this->_query['UNION'][] = 'UNION ' . (empty($mode) ? '' : $mode . ' ') . "({$union})";
-		$this->params($params);
-		return $this;
-	}
-
-	/**
-	 * comment
-	 * @access public
-	 * @param string	$comment
-	 * @return Yod_DbModel
-	 */
-	public function comment($comment)
-	{
-		$this->_query['COMMENT'] = $comment;
-		return $this;
-	}
-
-	/**
-	 * params
-	 * @access public
-	 * @param array		$params
-	 * @return Yod_DbModel
-	 */
-	public function params(array $params)
-	{
-		if (is_array($params)) {
-			if (is_array($this->_params)) {
-				$params = array_merge($this->_params, $params);
-			}
-			$this->_params = $params;
-		}
-		return $this;
-	}
-
-	/**
-	 * parseQuery
-	 * @access public
-	 * @param array		$query
-	 * @return mixed
-	 */
-	public function parseQuery($query = null)
-	{
-		$query = empty($query) ? $this->_query : $query;
-		if (empty($query['FROM'])) {
-			if (empty($this->_table)) {
-				trigger_error('You have an error in your SQL syntax: table name is empty', E_USER_WARNING);
-				return false;
-			}
-			$query['FROM'] = "{$this->_prefix}{$this->_table} AS t1";
-		}
-
-		$result = '';
-		foreach ($query as $key => $value) {
-			if (empty($value)) {
-				continue;
-			}
-			if (is_array($value)) {
-				if ($key == 'UNION') {
-					$result = '(' . $result . ') ' . implode(' ', $value);
-				} elseif ($key == 'JOIN') {
-					$result .= ' ' . implode(' ', $value);
-				}
-				continue;
-			}
-			if ($key == 'SELECT') {
-				$result = $key . ' ' . $value;
-			} elseif ($key == 'COMMENT') {
-				$result .= ' /* ' . $value . ' */';
-			} else {
-				$result .= ' ' . $key . ' ' . $value;
-			}
-		}
-
-		return $result;
-	}
-
-	/**
-	 * initQuery
-	 * @access protected
-	 * @return string
-	 */
-	protected function initQuery()
-	{
-		$this->_query = array(
-			'SELECT' => '*',
-			'FROM' => '',
-			'JOIN' => array(),
-			'WHERE' => '',
-			'GROUP BY' => '',
-			'HAVING' => '',
-			'ORDER BY' => '',
-			'LIMIT' => '',
-			'UNION' => array(),
-			'COMMENT' => '',
-		);
-		$this->_params = array();
-
-		return $this;
 	}
 
 }
@@ -1998,6 +1558,7 @@ abstract class Yod_Database
 		if (empty($table)) return false;
 		$params1 = array();
 		foreach ($params as $key => $value) {
+			$params1[] = $value;
 			if (is_numeric($key)) {
 				continue;
 			}
@@ -2265,7 +1826,11 @@ class Yod_DbPdo extends Yod_Database
 		$config = $this->dbconfig($config, $linknum);
 		$linknum = isset($config['linknum']) ? $config['linknum'] : 0;
 		if (isset($this->_linkids[$linknum])) {
-			return $this->_linkid = $this->_linkids[$linknum];
+			$this->_linkid = $this->_linkids[$linknum];
+			$errinfo = $this->_linkid->errorInfo();
+			if ($errinfo[1] != 2013 && $errinfo[1] != 2006) {
+				return $this->_linkid;
+			}
 		}
 		if (empty($config['dsn']) && empty($config['pdsn'])) {
 			trigger_error('PDO DSN configure error', E_USER_ERROR);
@@ -2577,6 +2142,7 @@ abstract class Yod_Base
 	protected static $_imports = array();
 	protected static $_plugins = array();
 	protected static $_modname = 'Home';
+	protected static $_startup = false;
 
 	/**
 	 * app
@@ -2597,6 +2163,9 @@ abstract class Yod_Base
 	 */
 	public static function config($name = null)
 	{
+		if (empty(self::$_startup)) {
+			self::init_startup();
+		}
 		if (is_null($name)) {
 			return self::$_config;
 		}
@@ -2735,18 +2304,6 @@ abstract class Yod_Base
 	}
 
 	/**
-	 * dmodel
-	 * @access public
-	 * @param string $name
-	 * @param mixed $config
-	 * @return Yod_DbModel
-	 */
-	public static function dmodel($name = '', $config = '')
-	{
-		return Yod_DbModel::getInstance($name, $config);
-	}
-
-	/**
 	 * db
 	 * @access public
 	 * @param mixed $config
@@ -2784,16 +2341,21 @@ abstract class Yod_Base
 				$classpath = YOD_RUNPATH . '/' . $modname . '/Controller/' . $classfile . '.php';
 				if (is_file($classpath)) include $classpath;
 			} elseif (strncasecmp(substr($classname, -5), 'Model', 5) == 0) {
-				$classpath = YOD_LIBPATH . '/Model/' . $classfile . '.php';
+				$classpath = YOD_RUNPATH . '/' . $modname . '/Model/' . $classfile . '.php';
 				if (is_file($classpath)) {
 					include $classpath;
 				} else {
-					$classpath = YOD_RUNPATH . '/' . $modname . '/Model/' . $classfile . '.php';
+					$classpath = YOD_LIBPATH . '/Model/' . $classfile . '.php';
 					if (is_file($classpath)) include $classpath;
 				}
 			} elseif (strncasecmp(substr($classname, -7), 'Service', 7) == 0) {
-				$classpath = YOD_LIBPATH . '/Service/' . $classfile . '.php';
-				if (is_file($classpath)) include $classpath;
+				$classpath = YOD_RUNPATH . '/' . $modname . '/Service/' . $classfile . '.php';
+				if (is_file($classpath)) {
+					include $classpath;
+				} else {
+					$classpath = YOD_LIBPATH . '/Service/' . $classfile . '.php';
+					if (is_file($classpath)) include $classpath;
+				}
 			} else {
 				$classpath = YOD_LIBPATH . '/Extend/' . $classfile . '.php';
 				if (is_file($classpath)) include $classpath;
@@ -2960,6 +2522,10 @@ abstract class Yod_Base
 	 */
 	public static function init_startup()
 	{
+		if (self::$_startup) {
+			return;
+		}
+		self::$_startup = true;
 		self::init_config();
 		self::init_register();
 		self::init_autorun();

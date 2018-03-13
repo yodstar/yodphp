@@ -1,5 +1,5 @@
 --TEST--
-Check for yod dbmodel
+Check for yod model
 --SKIPIF--
 <?php
 if (!extension_loaded("yod") || !class_exists('PDO', false)) {
@@ -83,7 +83,7 @@ class IndexController extends Yod_Controller
 		$create = $db->create($fields, 'tests', $extend);
 		echo "create:"; var_dump($create);
 
-		$tests = Yod::dmodel('Tests');
+		$tests = Yod::model('Tests');
 
 		$data = array(
 			'title' => 'Tests',
@@ -96,10 +96,10 @@ class IndexController extends Yod_Controller
 		echo "find:"; print_r($tests->find());
 
 		$data['updated'] = 1234567891;
-		$update = $tests->where('id = :id', array(':id' => 1))->update($data);
+		$update = $tests->update($data, 'id = :id', array(':id' => 1));
 		echo "update:"; var_dump($update);
 
-		$find = $tests->where('id = :id', array(':id' => 1))->find();
+		$find = $tests->find('id = :id', array(':id' => 1));
 		echo "find:"; print_r($find);
 
 		echo "select:"; print_r($tests->select());

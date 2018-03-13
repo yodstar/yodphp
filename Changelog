@@ -1,4 +1,14 @@
-This file documents changes for Yod Framework release 1.4.1 and earlier.
+This file documents changes for Yod Framework release 1.4.2 and earlier.
+
+version 1.4.2:
+  - Modify the method model and autoload of class Yod_Base
+  - Remove configure option --with-yod-crypt[=screw]
+  - Remove the class Yod_DbModel (to keep it simple)
+  - Change the value of YOD_RUNTIME to milliseconds
+  - Modify the method connect of class Yod_DbPdo (support reconnect)
+  - Modify the method handle of class Yod_Server (support model)
+  - Fixed a bug in yod_dbpdo_* and yod_model_save
+  - Modify the method route and dispatch of class Yod_Request
 
 version 1.4.1:
 

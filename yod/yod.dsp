@@ -188,10 +188,6 @@ SOURCE=.\yod_model.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\yod_dbmodel.c
-# End Source File
-# Begin Source File
-
 SOURCE=.\yod_database.c
 # End Source File
 # Begin Source File

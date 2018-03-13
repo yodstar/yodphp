@@ -34,7 +34,7 @@ class Yod_DbMysqli extends Yod_Database
 	 * @param integer $linknum
 	 * @return mixed
 	 */
-	public function connect($config = null, $linknum = 0)
+	public function connect(array $config = null, $linknum = 0)
 	{
 		$config = $this->dbconfig($config, $linknum);
 		$linknum = isset($config['linknum']) ? $config['linknum'] : 0;
@@ -95,7 +95,7 @@ class Yod_DbMysqli extends Yod_Database
 	 * @access public
 	 * @return boolean
 	 */
-	public function execute($query, $params = array(), $affected = false)
+	public function execute($query, array $params = array(), $affected = false)
 	{
 		$this->connect($this->_config, 0);
 
@@ -137,7 +137,7 @@ class Yod_DbMysqli extends Yod_Database
 	 * @access public
 	 * @return mixed
 	 */
-	public function query($query, $params = array())
+	public function query($query, array $params = array())
 	{
 		$this->connect($this->_config, 1);
 

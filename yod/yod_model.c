@@ -26,7 +26,6 @@
 #include "php_yod.h"
 #include "yod_application.h"
 #include "yod_model.h"
-#include "yod_dbmodel.h"
 #include "yod_database.h"
 #include "yod_base.h"
 
@@ -637,9 +636,10 @@ PHP_METHOD(yod_model, save) {
 			zend_call_method_with_0_params(&yoddb, Z_OBJCE_P(yoddb), NULL, "insertid", &pzval);
 			if (pzval) {
 				if (Z_TYPE_P(pzval) == IS_STRING && strncmp("0", Z_STRVAL_P(pzval), Z_STRLEN_P(pzval)) == 0) {
+					zval_ptr_dtor(&pzval);
 					RETURN_TRUE;
 				}
-				RETURN_ZVAL(pzval, 1, 1);
+				RETURN_ZVAL(pzval, 0, 1);
 			}
 			RETURN_FALSE;
 		}

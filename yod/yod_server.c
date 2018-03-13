@@ -242,7 +242,13 @@ void yod_server_handle(yod_server_t *object TSRMLS_DC) {
 
 		/* classname */
 		p2 = p2 + handle2_len - classname_len;
-		classname_len = spprintf(&classname, 0, "%sService", p2);
+		if (classname_len > 5 && strncasecmp(p2 + classname_len - 5, "Model", 5) == 0) {
+			p1 = estrndup(p2, classname_len - 5);
+			classname_len = spprintf(&classname, 0, "%sModel", p1);
+			efree(p1);
+		} else {
+			classname_len = spprintf(&classname, 0, "%sService", p2);
+		}
 
 		/* require */
 #if PHP_API_VERSION < 20100412
@@ -250,7 +256,13 @@ void yod_server_handle(yod_server_t *object TSRMLS_DC) {
 #else
 		if (zend_lookup_class_ex(classname, classname_len, NULL, 0, &pce TSRMLS_CC) != SUCCESS) {
 #endif
-			spprintf(&classpath, 0, "%s/%s/%sService.php", yod_libpath(TSRMLS_C), YOD_DIR_SERVICE, handle2);
+			if (classname_len > 5 && strncasecmp(p2 + classname_len - 5, "Model", 5) == 0) {
+				p1 = estrndup(handle2, handle2_len - 5);
+				spprintf(&classpath, 0, "%s/%s/%sModel.php", yod_libpath(TSRMLS_C), YOD_DIR_MODEL, p1);
+				efree(p1);
+			} else {
+				spprintf(&classpath, 0, "%s/%s/%sService.php", yod_libpath(TSRMLS_C), YOD_DIR_SERVICE, handle2);
+			}
 			if (VCWD_ACCESS(classpath, F_OK) == 0) {
 				yod_include(classpath, NULL, 1 TSRMLS_CC);
 			}

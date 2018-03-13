@@ -46,7 +46,6 @@
 #include "php_yod.h"
 #include "yod_application.h"
 #include "yod_model.h"
-#include "yod_dbmodel.h"
 #include "yod_database.h"
 #include "yod_base.h"
 
@@ -82,11 +81,6 @@ ZEND_BEGIN_ARG_INFO_EX(yod_base_plugin_arginfo, 0, 0, 1)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(yod_base_model_arginfo, 0, 0, 0)
-	ZEND_ARG_INFO(0, name)
-	ZEND_ARG_INFO(0, config)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(yod_base_dmodel_arginfo, 0, 0, 0)
 	ZEND_ARG_INFO(0, name)
 	ZEND_ARG_INFO(0, config)
 ZEND_END_ARG_INFO()
@@ -583,16 +577,23 @@ static int yod_base_autoload(char *classname, uint classname_len TSRMLS_DC) {
 		if (classname_len > 10 && strncasecmp(classfile + classname_len - 10, "Controller", 10) == 0) {
 			spprintf(&classpath, 0, "%s/%s/%s/%s.php", yod_runpath(TSRMLS_C), YOD_G(modname), YOD_DIR_CONTROLLER, classfile);
 		} else if (classname_len > 5 && strncasecmp(classfile + classname_len - 5, "Model", 5) == 0) {
-			spprintf(&classpath, 0, "%s/%s/%s.php", yod_libpath(TSRMLS_C), YOD_DIR_MODEL, classfile);
+			spprintf(&classpath, 0, "%s/%s/%s/%s.php", yod_runpath(TSRMLS_C), YOD_G(modname), YOD_DIR_MODEL, classfile);
 			if (VCWD_ACCESS(classpath, F_OK) != 0) {
-				spprintf(&classpath1, 0, "%s/%s/%s/%s.php", yod_runpath(TSRMLS_C), YOD_G(modname), YOD_DIR_MODEL, classfile);
+				spprintf(&classpath1, 0, "%s/%s/%s.php", yod_libpath(TSRMLS_C), YOD_DIR_MODEL, classfile);
 				if (classpath) {
 					efree(classpath);
 				}
 				classpath = classpath1;
 			}
 		} else if (classname_len > 7 && strncasecmp(classfile + classname_len - 7, "Service", 7) == 0) {
-			spprintf(&classpath, 0, "%s/%s/%s.php", yod_libpath(TSRMLS_C), YOD_DIR_SERVICE, classfile);
+			spprintf(&classpath, 0, "%s/%s/%s/%s.php", yod_runpath(TSRMLS_C), YOD_G(modname), YOD_DIR_SERVICE, classfile);
+			if (VCWD_ACCESS(classpath, F_OK) != 0) {
+				spprintf(&classpath1, 0, "%s/%s/%s.php", yod_libpath(TSRMLS_C), YOD_DIR_SERVICE, classfile);
+				if (classpath) {
+					efree(classpath);
+				}
+				classpath = classpath1;
+			}
 		} else {
 			spprintf(&classpath, 0, "%s/%s/%s.php", yod_libpath(TSRMLS_C), YOD_DIR_EXTEND, classfile);
 		}
@@ -600,7 +601,9 @@ static int yod_base_autoload(char *classname, uint classname_len TSRMLS_DC) {
 
 	if (VCWD_ACCESS(classpath, F_OK) == 0) {
 		yod_include(classpath, NULL, 1 TSRMLS_CC);
-	} else {
+	}
+/*
+	else {
 		classfile2 = classfile;
 		while (depth1 < depth) {
 			if (*classfile == '/') {
@@ -611,7 +614,7 @@ static int yod_base_autoload(char *classname, uint classname_len TSRMLS_DC) {
 		}
 		classfile = classfile2;
 
-		if (strncasecmp(classfile, "Yod_", 4) == 0) { /* yodphp extends class */
+		if (strncasecmp(classfile, "Yod_", 4) == 0) {
 			if (strncasecmp(classfile, "Yod_Db", 6) == 0) {
 				spprintf(&classpath, 0, "%s/%s/%s.php", yod_libpath(TSRMLS_C), YOD_DIR_DRIVER, classfile + 4);
 			} else {
@@ -621,16 +624,23 @@ static int yod_base_autoload(char *classname, uint classname_len TSRMLS_DC) {
 			if (classname_len > 10 && strncasecmp(classfile + classname_len - 10, "Controller", 10) == 0) {
 				spprintf(&classpath, 0, "%s/%s/%s/%s.php", yod_runpath(TSRMLS_C), YOD_G(modname), YOD_DIR_CONTROLLER, classfile);
 			} else if (classname_len > 5 && strncasecmp(classfile + classname_len - 5, "Model", 5) == 0) {
-				spprintf(&classpath, 0, "%s/%s/%s.php", yod_libpath(TSRMLS_C), YOD_DIR_MODEL, classfile);
+				spprintf(&classpath, 0, "%s/%s/%s/%s.php", yod_runpath(TSRMLS_C), YOD_G(modname), YOD_DIR_MODEL, classfile);
 				if (VCWD_ACCESS(classpath, F_OK) != 0) {
-					spprintf(&classpath1, 0, "%s/%s/%s/%s.php", yod_runpath(TSRMLS_C), YOD_G(modname), YOD_DIR_MODEL, classfile);
+					spprintf(&classpath1, 0, "%s/%s/%s.php", yod_libpath(TSRMLS_C), YOD_DIR_MODEL, classfile);
 					if (classpath) {
 						efree(classpath);
 					}
 					classpath = classpath1;
 				}
 			} else if (classname_len > 7 && strncasecmp(classfile + classname_len - 7, "Service", 7) == 0) {
-				spprintf(&classpath, 0, "%s/%s/%s.php", yod_libpath(TSRMLS_C), YOD_DIR_SERVICE, classfile);
+				spprintf(&classpath, 0, "%s/%s/%s/%s.php", yod_runpath(TSRMLS_C), YOD_G(modname), YOD_DIR_SERVICE, classfile);
+				if (VCWD_ACCESS(classpath, F_OK) != 0) {
+					spprintf(&classpath1, 0, "%s/%s/%s.php", yod_libpath(TSRMLS_C), YOD_DIR_SERVICE, classfile);
+					if (classpath) {
+						efree(classpath);
+					}
+					classpath = classpath1;
+				}
 			} else {
 				spprintf(&classpath, 0, "%s/%s/%s.php", yod_libpath(TSRMLS_C), YOD_DIR_EXTEND, classfile);
 			}
@@ -640,6 +650,7 @@ static int yod_base_autoload(char *classname, uint classname_len TSRMLS_DC) {
 			yod_include(classpath, NULL, 1 TSRMLS_CC);
 		}
 	}
+*/
 	efree(classfile1);
 	efree(classpath);
 
@@ -837,21 +848,6 @@ PHP_METHOD(yod_base, model) {
 }
 /* }}} */
 
-/** {{{ proto protected Yod_Base::dmodel($name = '', $config = '')
-*/
-PHP_METHOD(yod_base, dmodel) {
-	zval *config = NULL;
-	char *name = NULL;
-	uint name_len = 0;
-
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|sz!", &name, &name_len, &config) == FAILURE) {
-		return;
-	}
-
-	yod_dbmodel_getinstance(name, name_len, config, return_value TSRMLS_CC);
-}
-/* }}} */
-
 /** {{{ proto public Yod_Base::db($config = 'db_dsn')
 */
 PHP_METHOD(yod_base, db) {
@@ -909,7 +905,6 @@ zend_function_entry yod_base_methods[] = {
 	PHP_ME(yod_base, import,	yod_base_import_arginfo,	ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
 	PHP_ME(yod_base, plugin,	yod_base_plugin_arginfo,	ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
 	PHP_ME(yod_base, model,		yod_base_model_arginfo,		ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
-	PHP_ME(yod_base, dmodel,	yod_base_dmodel_arginfo,	ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
 	PHP_ME(yod_base, db,		yod_base_db_arginfo,		ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
 	PHP_ME(yod_base, autoload,	yod_base_autoload_arginfo,	ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
 	PHP_ME(yod_base, errorlog,	yod_base_errorlog_arginfo,	ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)

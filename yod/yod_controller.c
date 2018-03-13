@@ -33,7 +33,6 @@
 #include "yod_action.h"
 #include "yod_widget.h"
 #include "yod_model.h"
-#include "yod_dbmodel.h"
 #include "yod_base.h"
 
 #if PHP_YOD_DEBUG

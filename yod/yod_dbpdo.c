@@ -87,11 +87,6 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(yod_dbpdo_lastquery_arginfo, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(yod_dbpdo_dbconfig_arginfo, 0, 0, 1)
-	ZEND_ARG_INFO(0, config)
-	ZEND_ARG_INFO(0, linknum)
-ZEND_END_ARG_INFO()
-
 ZEND_BEGIN_ARG_INFO_EX(yod_dbpdo_connect_arginfo, 0, 0, 0)
 	ZEND_ARG_INFO(0, config)
 	ZEND_ARG_INFO(0, linknum)
@@ -156,7 +151,7 @@ ZEND_END_ARG_INFO()
 /** {{{ static int yod_dbpdo_connect(yod_dbpdo_t *object, zval *config, long linknum, zval *retval TSRMLS_DC)
 */
 static int yod_dbpdo_connect(yod_dbpdo_t *object, zval *config, long linknum, zval *retval TSRMLS_DC) {
-	zval *dbconfig, *linkids, *linkids1, *linkid, *linkid1, *argv[4], *query, **ppval;
+	zval *dbconfig, *errinfo, *linkids, *linkids1, *linkid, *linkid1, *argv[4], *query, **value, **ppval;
 	zval persist, emulate, zvtrue, errmode, warning;
 	zend_class_entry **pce = NULL;
 	char *squery;
@@ -191,13 +186,27 @@ static int yod_dbpdo_connect(yod_dbpdo_t *object, zval *config, long linknum, zv
 		if (zend_hash_index_find(Z_ARRVAL_P(linkids), linknum, (void **)&ppval) == SUCCESS) {
 			MAKE_STD_ZVAL(linkid);
 			ZVAL_ZVAL(linkid, *ppval, 1, 0);
-			zend_update_property(Z_OBJCE_P(object), object, ZEND_STRL("_linkid"), linkid TSRMLS_CC);
-			zval_ptr_dtor(&linkid);
-			zval_ptr_dtor(&dbconfig);
-			if (retval) {
-				ZVAL_ZVAL(retval, *ppval, 1, 0);
+
+			zend_call_method_with_0_params(&linkid, Z_OBJCE_P(linkid), NULL, "errorinfo", &errinfo);
+			if (errinfo) {
+				if (Z_TYPE_P(errinfo) == IS_ARRAY && zend_hash_index_find(Z_ARRVAL_P(errinfo), 1, (void**)&value) == SUCCESS) {
+					convert_to_long(*value);
+					if (Z_LVAL_PP(value) != 2013 && Z_LVAL_PP(value) != 2006) {
+						zend_update_property(Z_OBJCE_P(object), object, ZEND_STRL("_linkid"), linkid TSRMLS_CC);
+
+						zval_ptr_dtor(&linkid);
+						zval_ptr_dtor(&errinfo);
+						zval_ptr_dtor(&dbconfig);
+						
+						if (retval) {
+							ZVAL_ZVAL(retval, *ppval, 1, 0);
+						}
+						return 1;
+					}
+				}
+				zval_ptr_dtor(&errinfo);
 			}
-			return 1;
+			zval_ptr_dtor(&linkid);
 		}
 	}
 
@@ -458,6 +467,9 @@ ulong yod_dbpdo_execute(yod_dbpdo_t *object, zval *query, zval *params, int affe
 				return rowcount;
 			} else {
 				php_error_docref(NULL TSRMLS_CC, E_WARNING, "Call to a member function execute() on a non-object");
+			}
+			if (result) {
+				zval_ptr_dtor(&result);
 			}
 		}
 	} else {
@@ -899,7 +911,7 @@ PHP_METHOD(yod_dbpdo, transaction) {
 	if (linkid && Z_TYPE_P(linkid) == IS_OBJECT) {
 		zend_call_method_with_0_params(&linkid, Z_OBJCE_P(linkid), NULL, "begintransaction", &retval);
 		if (retval) {
-			RETURN_ZVAL(retval, 1, 1);
+			RETURN_ZVAL(retval, 0, 1);
 		}
 	} else {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Call to a member function begintransaction() on a non-object");
@@ -928,7 +940,7 @@ PHP_METHOD(yod_dbpdo, commit) {
 	if (linkid && Z_TYPE_P(linkid) == IS_OBJECT) {
 		zend_call_method_with_0_params(&linkid, Z_OBJCE_P(linkid), NULL, "commit", &retval);
 		if (retval) {
-			RETURN_ZVAL(retval, 1, 1);
+			RETURN_ZVAL(retval, 0, 1);
 		}
 	} else {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Call to a member function commit() on a non-object");
@@ -957,7 +969,7 @@ PHP_METHOD(yod_dbpdo, rollback) {
 	if (linkid && Z_TYPE_P(linkid) == IS_OBJECT) {
 		zend_call_method_with_0_params(&linkid, Z_OBJCE_P(linkid), NULL, "rollback", &retval);
 		if (retval) {
-			RETURN_ZVAL(retval, 1, 1);
+			RETURN_ZVAL(retval, 0, 1);
 		}
 	} else {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Call to a member function rollBack() on a non-object");
@@ -983,7 +995,7 @@ PHP_METHOD(yod_dbpdo, insertId) {
 	if (linkid && Z_TYPE_P(linkid) == IS_OBJECT) {
 		zend_call_method_with_0_params(&linkid, Z_OBJCE_P(linkid), NULL, "lastinsertid", &retval);
 		if (retval) {
-			RETURN_ZVAL(retval, 1, 1);
+			RETURN_ZVAL(retval, 0, 1);
 		}
 	} else {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Call to a member function lastInsertId() on a non-object");
@@ -1013,7 +1025,7 @@ PHP_METHOD(yod_dbpdo, quote) {
 	if (linkid && Z_TYPE_P(linkid) == IS_OBJECT) {
 		zend_call_method_with_1_params(&linkid, Z_OBJCE_P(linkid), NULL, "quote", &retval, string);
 		if (retval) {
-			RETURN_ZVAL(retval, 1, 1);
+			RETURN_ZVAL(retval, 0, 1);
 		}
 	} else {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Call to a member function quote() on a non-object");
@@ -1068,7 +1080,7 @@ PHP_METHOD(yod_dbpdo, errNo) {
 	if (result && Z_TYPE_P(result) == IS_OBJECT) {
 		zend_call_method_with_0_params(&result, Z_OBJCE_P(result), NULL, "errorcode", &errcode);
 		if (errcode) {
-			RETURN_ZVAL(errcode, 1, 1);
+			RETURN_ZVAL(errcode, 0, 1);
 		}
 	}
 
@@ -1078,7 +1090,7 @@ PHP_METHOD(yod_dbpdo, errNo) {
 	}
 	zend_call_method_with_0_params(&linkid, Z_OBJCE_P(linkid), NULL, "errorcode", &errcode);
 	if (errcode) {
-		RETURN_ZVAL(errcode, 1, 1);
+		RETURN_ZVAL(errcode, 0, 1);
 	}
 	
 	RETURN_LONG(0);

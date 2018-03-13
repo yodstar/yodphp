@@ -48,23 +48,14 @@
 #include "yod_server.h"
 #include "yod_client.h"
 #include "yod_model.h"
-#include "yod_dbmodel.h"
 #include "yod_database.h"
 #include "yod_dbpdo.h"
 #include "yod_plugin.h"
 #include "yod_base.h"
 
-#if PHP_YOD_CRYPT
-#if PHP_YOD_CRYPT_TYPE == screw
-#include "crypt/screw.h"
-#endif
-#endif
-
 #if PHP_YOD_DEBUG
 #include "yod_debug.h"
 #endif
-
-#define MICRO_IN_SEC 1000000.00
 
 zend_class_entry *yod_ce;
 
@@ -927,7 +918,6 @@ PHP_MINIT_FUNCTION(yod)
 	PHP_MINIT(yod_server)(INIT_FUNC_ARGS_PASSTHRU);
 	PHP_MINIT(yod_client)(INIT_FUNC_ARGS_PASSTHRU);
 	PHP_MINIT(yod_model)(INIT_FUNC_ARGS_PASSTHRU);
-	PHP_MINIT(yod_dbmodel)(INIT_FUNC_ARGS_PASSTHRU);
 	PHP_MINIT(yod_database)(INIT_FUNC_ARGS_PASSTHRU);
 	PHP_MINIT(yod_dbpdo)(INIT_FUNC_ARGS_PASSTHRU);
 	PHP_MINIT(yod_plugin)(INIT_FUNC_ARGS_PASSTHRU);
@@ -964,18 +954,13 @@ PHP_RINIT_FUNCTION(yod)
 
 	yod_zend_compile_file = zend_compile_file;
 	zend_compile_file = yod_init_compile_file;
-
-#if PHP_YOD_CRYPT
-	yod_orig_compile_file = yod_crypt_compile_file;
-#else
 	yod_orig_compile_file = yod_zend_compile_file;
-#endif
 
 	/* runtime */
 	if (gettimeofday(&tp, NULL)) {
 		YOD_G(runtime)		= 0;	
 	} else {
-		YOD_G(runtime)		= (double)(tp.tv_sec + tp.tv_usec / MICRO_IN_SEC);
+		YOD_G(runtime)		= (long double)(tp.tv_sec * 1000 + tp.tv_usec / 1000.00);
 	}
 	REGISTER_DOUBLE_CONSTANT("YOD_RUNTIME", YOD_G(runtime), CONST_CS);
 

@@ -616,6 +616,28 @@ int yod_request_route(yod_request_t *object, char *route, uint route_len TSRMLS_
 		} else {
 			zend_str_tolower(controller, strlen(controller));
 			*controller = toupper(*controller);
+			temp = controller;
+			temp_len = 0;
+			flag = 0;
+			while (*temp != '\0') {
+				if (*temp == '-') {
+					if (flag == 1) {
+						*(controller + temp_len) = '_';
+						++temp_len;
+					}
+					flag = 1;
+				} else {
+					if (flag == 1) {
+						*(controller + temp_len) = toupper(*temp);
+					} else {
+						*(controller + temp_len) = *temp;
+					}
+					++temp_len;
+					flag = 0;
+				}
+				++temp;
+			}
+			*(controller + temp_len) = '\0';
 			zend_update_property_string(yod_request_ce, object, ZEND_STRL("controller"), controller TSRMLS_CC);
 
 			/* action */
@@ -727,8 +749,6 @@ int yod_request_dispatch(yod_request_t *object TSRMLS_DC) {
 	controller = zend_read_property(yod_request_ce, object, ZEND_STRL("controller"), 1 TSRMLS_CC);
 	if (controller && Z_TYPE_P(controller) == IS_STRING) {
 		controller1_len = spprintf(&controller1, 0, "%s", Z_STRVAL_P(controller));
-		zend_str_tolower(controller1, controller1_len);
-		*controller1 = toupper(*controller1);
 	} else {
 		controller1_len = spprintf(&controller1, 0, "Index");
 	}

@@ -51,10 +51,10 @@ extern zend_module_entry yod_module_entry;
 #endif
 
 #if PHP_YOD_DEBUG
-#define YOD_VERSION					"1.4.1-dev"
+#define YOD_VERSION					"1.4.2-dev"
 #define YOD_RUNMODE					7
 #else
-#define YOD_VERSION					"1.4.1"
+#define YOD_VERSION					"1.4.2"
 #define YOD_RUNMODE					3
 #endif
 
@@ -119,7 +119,6 @@ extern zend_module_entry yod_module_entry;
 #define yod_server_t		zval
 #define yod_client_t		zval
 #define yod_model_t			zval
-#define yod_dbmodel_t		zval
 #define yod_database_t		zval
 #define yod_dbpdo_t			zval
 
@@ -152,7 +151,7 @@ zend_op_array *(*yod_orig_compile_file)(zend_file_handle *file_handle, int type 
 zend_op_array *(*yod_zend_compile_file)(zend_file_handle *file_handle, int type TSRMLS_DC);
 
 ZEND_BEGIN_MODULE_GLOBALS(yod)
-	double		runtime;
+	long double	runtime;
 	long		forward;
 	long		runmode;
 	char		*charset;
